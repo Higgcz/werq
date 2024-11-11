@@ -6,7 +6,7 @@ that's perfect for small to medium workloads where simplicity
 and ease of use are priorities.
 """
 
-from .dirq import JobQueue, JobStatus, Worker
+from .dirq import Job, JobQueue, JobState, Worker
 from .exceptions import (
     DirQException,
     JobNotFoundException,
@@ -16,11 +16,12 @@ from .exceptions import (
 
 __version__ = "0.1.0"
 __all__ = [
-    "JobQueue",
-    "Worker",
-    "JobStatus",
     "DirQException",
+    "Job",
     "JobNotFoundException",
+    "JobQueue",
+    "JobState",
     "JobStateError",
     "JobValidationError",
+    "Worker",
 ]

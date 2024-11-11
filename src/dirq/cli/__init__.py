@@ -23,8 +23,9 @@ def main(args: Optional[Sequence[str]] = None) -> None:
 
     # Submit command
     submit_parser = subparsers.add_parser("submit", help="Submit new job")
-    submit_parser.add_argument("params_file", type=Path, help="JSON file with job parameters")
+    submit_parser.add_argument("params_file", type=Path, help="JSON file with job parameters", metavar="FILE.json")
     submit_parser.add_argument("--monitor", action="store_true", help="Monitor job after submission")
+    submit_parser.add_argument("--sh", nargs="+", help="Command to run in shell")
     submit_parser.set_defaults(func=submit_command)
 
     # List command
@@ -42,6 +43,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     worker_parser.add_argument(
         "--poll-interval", type=float, default=1.0, help="Poll interval in seconds (default: 1.0)"
     )
+    worker_parser.add_argument("--rm", action="store_true", help="Kill worker after all jobs are done")
     worker_parser.set_defaults(func=worker_command)
 
     # Parse and execute
