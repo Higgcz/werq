@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+job.json
+.coverage
+jobs
+.aider.conf.yaml
+.aider*
+.env
