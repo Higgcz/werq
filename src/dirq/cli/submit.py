@@ -1,28 +1,33 @@
 """Job submission and monitoring commands."""
 
 import json
+import shlex
 import time
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-from dirq import DirQException, JobQueue, JobState
+from dirq import DirQError, JobQueue, JobState
 from dirq.dirq import JobID
 
 
 def submit_command(args: Any) -> None:
     """Handle the submit command."""
     try:
-        # Read parameters
-        with open(args.params_file) as f:
-            params = json.load(f)
+        # Check if file or command
+        match args.file_or_command:
+            case [file] if file.endswith(".json") and Path(file).is_file():
+                params = json.loads(Path(file).read_text())
+            case _:
+                params = {"command": shlex.join(args.file_or_command), "type": "shell"}
 
         # Initialize queue and submit job
         queue = JobQueue(args.jobs_dir)
         job_id = queue.submit(params)
-        print(f"Submitted job: {job_id}")
+        print(f"Submitted job: {job_id} ({params})")
 
         # Monitor if requested
         if args.monitor:
@@ -30,7 +35,7 @@ def submit_command(args: Any) -> None:
 
     except json.JSONDecodeError as e:
         print(f"Error reading parameters file: {e}")
-    except DirQException as e:
+    except DirQError as e:
         print(f"Job submission failed: {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")

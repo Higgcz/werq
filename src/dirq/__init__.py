@@ -8,17 +8,15 @@ and ease of use are priorities.
 
 from .dirq import Job, JobQueue, JobState, Worker
 from .exceptions import (
-    DirQException,
-    JobNotFoundException,
+    DirQError,
     JobStateError,
     JobValidationError,
 )
 
 __version__ = "0.1.0"
 __all__ = [
-    "DirQException",
+    "DirQError",
     "Job",
-    "JobNotFoundException",
     "JobQueue",
     "JobState",
     "JobStateError",

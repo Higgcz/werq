@@ -22,10 +22,23 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Submit command
-    submit_parser = subparsers.add_parser("submit", help="Submit new job")
-    submit_parser.add_argument("params_file", type=Path, help="JSON file with job parameters", metavar="FILE.json")
+    submit_parser = subparsers.add_parser(
+        "submit",
+        help="Submit new job",
+        description="The `dirq submit` command is used to submit jobs to a job queue. "
+        "It can handle both JSON parameter files and shell commands. "
+        "The command initializes the job queue, submits the job, and optionally monitors the job's progress.",
+        epilog="Examples:\n"
+        "  # Submitting a job using a JSON parameter file\n"
+        "  dirq submit job_params.json\n\n"
+        "  # Submitting a shell command as a job\n"
+        "  dirq submit echo 'Hello, World!'\n\n"
+        "  # Submitting a job and monitoring its progress\n"
+        "  dirq submit job_params.json --monitor",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    submit_parser.add_argument("file_or_command", help="Parameters file or shell command", nargs="+")
     submit_parser.add_argument("--monitor", action="store_true", help="Monitor job after submission")
-    submit_parser.add_argument("--sh", nargs="+", help="Command to run in shell")
     submit_parser.set_defaults(func=submit_command)
 
     # List command

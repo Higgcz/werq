@@ -13,7 +13,7 @@ from typing import Any, Generic, NewType, Optional, TypeVar
 
 from filelock import BaseFileLock, FileLock
 
-from .exceptions import JobNotFoundException, JobStateError, JobValidationError
+from .exceptions import JobStateError, JobValidationError
 
 
 class JobState(str, Enum):
