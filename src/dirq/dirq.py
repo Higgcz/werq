@@ -1,15 +1,15 @@
-import atexit
 import json
 import shutil
 import time
 import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generic, NewType, Optional, TypeVar
+from typing import Any, NewType, Optional
 
 from filelock import BaseFileLock, FileLock
 
@@ -103,94 +103,6 @@ class Job:
         return base_dir / RESULT_DIR / self.id
 
 
-T = TypeVar("T")
-
-
-class LockedFile(Generic[T]):
-    """Helper class for handling file operations with locking."""
-
-    _active_locks: list[BaseFileLock] = []  # Class variable to track all locks
-
-    @classmethod
-    def cleanup_locks(cls) -> None:
-        """Clean up all lock files."""
-        for lock in cls._active_locks:
-            try:
-                if lock.is_locked:
-                    lock.release()
-                if Path(lock.lock_file).exists():
-                    Path(lock.lock_file).unlink()
-            except Exception as e:
-                print(f"Error cleaning up lock {lock.lock_file}: {e}")
-
-    def __init__(self, path: Path) -> None:
-        self.path = Path(path)
-        self.lock_path = Path(str(path) + ".lock")
-        self.lock = FileLock(self.lock_path)
-        LockedFile._active_locks.append(self.lock)
-
-    @contextmanager
-    def open_locked(self, mode: str = "r"):
-        """Context manager for file operations with locking."""
-        try:
-            with self.lock:
-                with open(self.path, mode) as f:
-                    yield f
-        finally:
-            if self.lock.is_locked:
-                self.lock.release()
-            if self.lock_path.exists():
-                try:
-                    self.lock_path.unlink()
-                except Exception:
-                    pass
-
-    def read_json(self) -> T:
-        """Read and parse JSON file with locking."""
-        try:
-            with self.open_locked("r") as f:
-                return json.load(f)
-        except json.JSONDecodeError as e:
-            raise JobValidationError(f"Invalid JSON in {self.path}: {e}") from e
-
-    def write_json(self, data: T) -> None:
-        """Write JSON data with locking."""
-        with self.open_locked("w") as f:
-            json.dump(data, f, indent=2)
-
-    def move_to(self, new_path: Path) -> None:
-        """Move file to new location with locking."""
-        try:
-            with self.lock:
-                shutil.move(str(self.path), str(new_path))
-        finally:
-            if self.lock.is_locked:
-                self.lock.release()
-            if self.lock_path.exists():
-                try:
-                    self.lock_path.unlink()
-                except Exception:
-                    pass
-
-    def remove(self) -> None:
-        """Remove file with locking."""
-        try:
-            with self.lock:
-                self.path.unlink(missing_ok=True)
-        finally:
-            if self.lock.is_locked:
-                self.lock.release()
-            if self.lock_path.exists():
-                try:
-                    self.lock_path.unlink()
-                except Exception:
-                    pass
-
-
-# Register cleanup on exit
-atexit.register(LockedFile.cleanup_locks)
-
-
 class JobQueue:
     def __init__(self, base_dir: Path) -> None:
         """
@@ -198,25 +110,24 @@ class JobQueue:
         """
         self.base_dir = Path(base_dir)
         self._ensure_directories()
-        self._cleanup_stale_locks()
 
     def _ensure_directories(self) -> None:
         """Create necessary directory structure."""
         for dir_name in [RESULT_DIR] + [status.value for status in JobState]:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
-    def _cleanup_stale_locks(self) -> None:
-        """Clean up any stale lock files."""
-        # TODO: Might no be necessary with FileLock improvements
-        for lock_file in self.base_dir.rglob("*.lock"):
-            try:
-                lock_file.unlink()
-            except Exception:
-                pass
-
     def _generate_job_id(self) -> JobID:
         """Generate a unique job ID."""
         return JobID(f"job_{int(time.time() * 1000)}")
+
+    @contextmanager
+    def _with_lock(self, file_path: Path) -> Generator[BaseFileLock, None, None]:
+        """Get a file lock for a given file path."""
+        lock_path = file_path.with_suffix(".lock")
+        # Remove the state directory from the lock path
+        lock_path = Path(*lock_path.parts[:-2], lock_path.name)
+        yield FileLock(lock_path)
+        lock_path.unlink(missing_ok=True)
 
     def submit(self, params: dict[str, Any]) -> JobID:
         """Submit a new job to the queue."""
@@ -224,8 +135,9 @@ class JobQueue:
 
         job = Job(id=job_id, params=params)
 
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-        job_file.write_json(job.to_dict())
+        with self._with_lock(job.get_job_file(self.base_dir)):
+            job_file = job.get_job_file(self.base_dir)
+            job_file.write_text(json.dumps(job.to_dict(), indent=2))
 
         return job.id
 
@@ -238,49 +150,50 @@ class JobQueue:
             return None
 
         # Get the first job from the queue
-        job_file = LockedFile(jobs[0])
-        try:
-            job = Job.from_dict(job_file.read_json())
-        except Exception as e:
-            print(f"Error reading job file {jobs[0]}: {e}")
-            job_file.move_to(self.base_dir / JobState.FAILED.value / jobs[0].name)
-            return None
+        with self._with_lock(jobs[0]):
+            try:
+                job = Job.from_dict(json.loads(jobs[0].read_text()))
+            except Exception as e:
+                print(f"Error reading job file {jobs[0]}: {e}")
+                shutil.move(jobs[0], self.base_dir / JobState.FAILED.value)
+                return None
 
-        try:
-            # Start the job - change state to running
-            job.start()
-            # Remove the job from the queue
-            job_file.remove()
+            try:
+                job_file = job.get_job_file(self.base_dir)
+                # Start the job - change state to running
+                job.start()
+                # Remove the job from the queue
+                job_file.unlink()
 
-            # Move the job to the running directory
-            job_file = LockedFile(job.get_job_file(self.base_dir))
-            job_file.write_json(job.to_dict())
-        except Exception as e:
-            print(f"Error starting job {job.id}: {e}")
-            self.fail(job, f"Error starting job: {str(e)}")
-            return None
+                # Move the job to the running directory
+                job_file = job.get_job_file(self.base_dir)
+                job_file.write_text(json.dumps(job.to_dict(), indent=2))
+            except Exception as e:
+                print(f"Error starting job {job.id}: {e}")
+                self.fail(job, f"Error starting job: {str(e)}")
+                return None
 
         return job
 
     def complete(self, job: Job) -> None:
         """Mark job as completed."""
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-
-        job.complete()
-        # Remove the job from the running directory
-        job_file.remove()
-
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-        job_file.write_json(job.to_dict())
+        job_file = job.get_job_file(self.base_dir)
+        with self._with_lock(job_file):
+            job.complete()
+            # Remove the job from the running directory
+            job_file.unlink()
+            job_file = job.get_job_file(self.base_dir)
+            job_file.write_text(json.dumps(job.to_dict(), indent=2))
 
     def fail(self, job: Job, error: str) -> None:
         """Mark job as failed."""
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-        job.fail(error)
-        # Remove the job from the running directory
-        job_file.remove()
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-        job_file.write_json(job.to_dict())
+        job_file = job.get_job_file(self.base_dir)
+        with self._with_lock(job_file):
+            job.fail(error)
+            # Remove the job from the running directory
+            job_file.unlink()
+            job_file = job.get_job_file(self.base_dir)
+            job_file.write_text(json.dumps(job.to_dict(), indent=2))
 
     def get_result_dir(self, job: Job) -> Path:
         """Get the result directory for a job."""
@@ -288,19 +201,21 @@ class JobQueue:
 
     def update_progress(self, job: Job, progress: float) -> None:
         """Update job progress."""
-        job_file = LockedFile(job.get_job_file(self.base_dir))
-        job.update_progress(progress)
-        job_file.write_json(job.to_dict())
+        job_file = job.get_job_file(self.base_dir)
+        with self._with_lock(job_file):
+            job.update_progress(progress)
+            job_file.write_text(json.dumps(job.to_dict(), indent=2))
 
     def get_job(self, job_id: JobID) -> Optional[Job]:
         """Get a job by ID."""
         for state in JobState:
             job_file = self.base_dir / state.value / f"{job_id}.json"
             if job_file.exists():
-                try:
-                    return Job.from_dict(json.loads(job_file.read_text()))
-                except Exception as e:
-                    print(f"Error reading job {job_id}: {e}")
+                with self._with_lock(job_file):
+                    try:
+                        return Job.from_dict(json.loads(job_file.read_text()))
+                    except Exception as e:
+                        print(f"Error reading job {job_id}: {e}")
         return None
 
     def list_jobs(self, *states: JobState) -> list[Job]:
@@ -309,10 +224,11 @@ class JobQueue:
         states = states or tuple(JobState)
         for state in states:
             for job_file in (self.base_dir / state.value).glob("*.json"):
-                try:
-                    jobs.append(Job.from_dict(json.loads(job_file.read_text())))
-                except Exception as e:
-                    print(f"Error reading job {job_file}: {e}")
+                with self._with_lock(job_file):
+                    try:
+                        jobs.append(Job.from_dict(json.loads(job_file.read_text())))
+                    except Exception as e:
+                        print(f"Error reading job {job_file}: {e}")
         return jobs
 
 
