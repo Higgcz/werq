@@ -123,8 +123,12 @@ class JobQueue:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
     def _generate_job_id(self) -> JobID:
-        """Generate a unique job ID."""
-        return JobID(f"job_{int(time.time() * 1000)}")
+        """
+        Generate a unique job ID.
+
+        The ID is based on the current time in nanoseconds
+        """
+        return JobID(str(int(time.time_ns())))
 
     @contextmanager
     def _with_lock(self, file_path: Path) -> Generator[BaseFileLock, None, None]:
@@ -135,7 +139,7 @@ class JobQueue:
         yield FileLock(lock_path)
         lock_path.unlink(missing_ok=True)
 
-    def submit(self, params: dict[str, Any]) -> JobID:
+    def submit(self, params: dict[str, Any]) -> Job:
         """Submit a new job to the queue."""
         job_id = self._generate_job_id()
 
@@ -144,7 +148,7 @@ class JobQueue:
         with self._with_lock(job.get_job_file(self.base_dir)):
             job.save(self.base_dir)
 
-        return job.id
+        return job
 
     def pop_next(self) -> Optional[Job]:
         """Pop the next job from the queue."""
@@ -231,7 +235,7 @@ class JobQueue:
                         jobs.append(Job.from_dict(json.loads(job_file.read_text())))
                     except Exception as e:
                         print(f"Error reading job {job_file}: {e}")
-        return jobs
+        return sorted(jobs, key=lambda job: job.created_at)
 
 
 class Worker(ABC):

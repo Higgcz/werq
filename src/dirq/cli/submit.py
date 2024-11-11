@@ -26,12 +26,12 @@ def submit_command(args: Any) -> None:
 
         # Initialize queue and submit job
         queue = JobQueue(args.jobs_dir)
-        job_id = queue.submit(params)
-        print(f"Submitted job: {job_id} ({params})")
+        job = queue.submit(params)
+        print(f"Submitted job: {job.id} ({params})")
 
         # Monitor if requested
         if args.monitor:
-            monitor_job(queue, job_id)
+            monitor_job(queue, job.id)
 
     except json.JSONDecodeError as e:
         print(f"Error reading parameters file: {e}")
