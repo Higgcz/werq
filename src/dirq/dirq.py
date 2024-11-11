@@ -13,7 +13,7 @@ from typing import Any, NewType, Optional
 
 from filelock import BaseFileLock, FileLock
 
-from .exceptions import JobStateError, JobValidationError
+from .exceptions import JobStateError
 
 
 class JobState(str, Enum):
@@ -89,7 +89,6 @@ class Job:
         self.finished_at = datetime.now()
         self.error = err
 
-    # Progress tracking
     def update_progress(self, progress: float) -> None:
         if self.state != JobState.RUNNING:
             raise JobStateError(f"Cannot update progress for job {self.id} in state {self.state}")
@@ -97,10 +96,17 @@ class Job:
 
     # Path handling
     def get_job_file(self, base_dir: Path) -> Path:
+        """Get the JSON job file path for a job."""
         return base_dir / self.state.value / f"{self.id}.json"
 
     def get_result_dir(self, base_dir: Path) -> Path:
+        """Get the result directory for a job."""
         return base_dir / RESULT_DIR / self.id
+
+    def save(self, base_dir: Path) -> None:
+        """Save job to a JSON file."""
+        job_file = self.get_job_file(base_dir)
+        job_file.write_text(json.dumps(self.to_dict(), indent=2))
 
 
 class JobQueue:
@@ -136,8 +142,7 @@ class JobQueue:
         job = Job(id=job_id, params=params)
 
         with self._with_lock(job.get_job_file(self.base_dir)):
-            job_file = job.get_job_file(self.base_dir)
-            job_file.write_text(json.dumps(job.to_dict(), indent=2))
+            job.save(self.base_dir)
 
         return job.id
 
@@ -166,8 +171,7 @@ class JobQueue:
                 job_file.unlink()
 
                 # Move the job to the running directory
-                job_file = job.get_job_file(self.base_dir)
-                job_file.write_text(json.dumps(job.to_dict(), indent=2))
+                job.save(self.base_dir)
             except Exception as e:
                 print(f"Error starting job {job.id}: {e}")
                 self.fail(job, f"Error starting job: {str(e)}")
@@ -182,8 +186,7 @@ class JobQueue:
             job.complete()
             # Remove the job from the running directory
             job_file.unlink()
-            job_file = job.get_job_file(self.base_dir)
-            job_file.write_text(json.dumps(job.to_dict(), indent=2))
+            job.save(self.base_dir)
 
     def fail(self, job: Job, error: str) -> None:
         """Mark job as failed."""
@@ -192,8 +195,7 @@ class JobQueue:
             job.fail(error)
             # Remove the job from the running directory
             job_file.unlink()
-            job_file = job.get_job_file(self.base_dir)
-            job_file.write_text(json.dumps(job.to_dict(), indent=2))
+            job.save(self.base_dir)
 
     def get_result_dir(self, job: Job) -> Path:
         """Get the result directory for a job."""
@@ -204,7 +206,7 @@ class JobQueue:
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
             job.update_progress(progress)
-            job_file.write_text(json.dumps(job.to_dict(), indent=2))
+            job.save(self.base_dir)
 
     def get_job(self, job_id: JobID) -> Optional[Job]:
         """Get a job by ID."""
