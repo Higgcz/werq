@@ -17,12 +17,19 @@ from dirq.dirq import JobID
 def submit_command(args: Any) -> None:
     """Handle the submit command."""
     try:
+        print(args.file_or_command)
+
         # Check if file or command
         match args.file_or_command:
             case [file] if file.endswith(".json") and Path(file).is_file():
                 params = json.loads(Path(file).read_text())
             case _:
-                params = {"command": shlex.join(args.file_or_command), "type": "shell"}
+                params = {
+                    "command": (
+                        shlex.join(args.file_or_command) if len(args.file_or_command) > 1 else args.file_or_command[0]
+                    ),
+                    "type": "shell",
+                }
 
         # Initialize queue and submit job
         queue = JobQueue(args.jobs_dir)
@@ -141,3 +148,34 @@ def monitor_command(args: Any) -> None:
         monitor_job(queue, args.job_id)
     except Exception as e:
         print(f"Error starting monitoring: {e}")
+
+
+def info_command(args: Any) -> None:
+    """Show information about the job."""
+    try:
+        console = Console()
+
+        queue = JobQueue(args.jobs_dir)
+        job = queue.get_job(JobID(args.job_id))
+        if not job:
+            console.print(f"Job {args.job_id} not found!")
+            return
+
+        # Display table with job information
+        table = Table(title="Job Information", title_style="bold magenta")
+        table.add_column("Field", style="cyan", no_wrap=True)
+        table.add_column("Value", style="magenta", no_wrap=True)
+
+        for key, value in job.to_dict().items():
+            if key == "error":
+                continue
+            table.add_row(key, str(value))
+
+        console.print(table)
+
+        # Display the error
+        if job.error:
+            console.print(f"\nError:\n{job.error}", style="red")
+
+    except Exception as e:
+        print(f"Error getting job information: {e}")

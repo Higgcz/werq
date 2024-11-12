@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Sequence
 
-from .submit import list_command, monitor_command, submit_command
+from .submit import info_command, list_command, monitor_command, submit_command
 from .worker import worker_command
 
 
@@ -58,6 +58,11 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     )
     worker_parser.add_argument("--rm", action="store_true", help="Kill worker after all jobs are done")
     worker_parser.set_defaults(func=worker_command)
+
+    # Info command
+    info_parser = subparsers.add_parser("info", help="Show information about the job")
+    info_parser.add_argument("job_id", help="Job ID to show information")
+    info_parser.set_defaults(func=info_command)
 
     # Parse and execute
     parsed_args = parser.parse_args(args)
