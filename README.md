@@ -29,12 +29,14 @@ queue = JobQueue(Path("jobs"))
 # Submit a job
 job_id = queue.submit_job({"type": "analysis", "data": [1, 2, 3]})
 
+
 # Create a worker
 class MyWorker(Worker):
     def process_job(self, job_id, params, result_dir):
         # Do work...
         self.queue.update_progress(job_id, 50.0)
         # Save results...
+
 
 # Run worker
 worker = MyWorker(queue)

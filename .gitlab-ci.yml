@@ -1,0 +1,12 @@
+include:
+    - project: 'templates/cicd'
+      file:
+          - 'variables-global.yml'
+          - 'test-pre-commit.yml'
+          - 'test-pytest.yml'
+          - 'publish-pypi.yml'
+          #- 'publish-docs.yml'
+
+stages:
+    - test
+    - publish
