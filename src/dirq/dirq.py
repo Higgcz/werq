@@ -269,17 +269,20 @@ class JobQueue:
                         logger.error(f"Error reading job {job_file}: {e}")
         return sorted(jobs, key=lambda job: job.created_at, reverse=reverse)
 
-    def delete(self, job: Job) -> None:
+    def delete(self, job: Job, delete_result_dir: bool = True) -> bool:
         """Delete a job and its result directory."""
+        deleted = False
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
             if job_file.exists():
                 job_file.unlink()
-            
+                deleted = True
+
             # Delete result directory if exists
             result_dir = job.get_result_dir(self.base_dir)
-            if result_dir.exists():
+            if delete_result_dir and result_dir.exists():
                 shutil.rmtree(result_dir)
+        return deleted
 
 
 class Worker(ABC):

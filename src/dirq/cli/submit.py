@@ -4,7 +4,7 @@ import json
 import shlex
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import pandas as pd
 from rich.console import Console
@@ -25,9 +25,7 @@ def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = F
                 params = json.loads(Path(file).read_text())
             case _:
                 params = {
-                    "command": (
-                        shlex.join(file_or_command) if len(file_or_command) > 1 else file_or_command[0]
-                    ),
+                    "command": (shlex.join(file_or_command) if len(file_or_command) > 1 else file_or_command[0]),
                     "type": "shell",
                 }
 

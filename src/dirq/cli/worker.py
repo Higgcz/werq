@@ -2,6 +2,7 @@
 
 import subprocess
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Optional
 
@@ -14,7 +15,7 @@ from dirq import Job, JobQueue, Worker
 class DefaultWorker(Worker):
     """Default worker implementation for CLI usage."""
 
-    def process_job(self, job: Job, result_dir: Path) -> None:
+    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
         """Process a job with progress reporting."""
         print(f"\nProcessing job {job.id}")
         print(f"Parameters: {job.params}")
@@ -37,11 +38,13 @@ class DefaultWorker(Worker):
             f.write(f"Processed job with {steps} steps\n")
             f.write(f"Parameters: {job.params}\n")
 
+        return {"steps": steps, "sleep": sleep_time}
+
 
 class ShellWorker(Worker):
     """Shell worker implementation for CLI usage."""
 
-    def process_job(self, job: Job, result_dir: Path) -> None:
+    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
         """Process a job by executing a shell command."""
         print(f"\nProcessing job {job.id}")
         print(f"Parameters: {job.params}")
@@ -54,19 +57,16 @@ class ShellWorker(Worker):
 
         # Execute the shell command
         try:
-            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-
-            # Save results
-            with open(result_dir / "result.txt", "w") as f:
-                f.write(f"Executed command: {command}\n")
-                f.write(f"Output: {result.stdout}\n")
+            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True, cwd=result_dir)
         except subprocess.CalledProcessError as e:
             raise ValueError(f"Command failed with exit code {e.returncode}: {e.stderr}") from e
+
+        return {"command": command, "output": result.stdout}
 
 
 def worker_command(
     jobs_dir: Path,
-    name: Optional[str] = None,
+    name: str = "default",
     list: bool = False,
     poll_interval: float = 1.0,
     rm: bool = False,
