@@ -31,6 +31,7 @@ RESULTS_FILE = "results.json"
 ERROR_FILE = "error.txt"
 
 JobID = NewType("JobID", str)
+PathLike = str | Path
 
 
 @dataclass
@@ -115,20 +116,20 @@ class Job:
         self.progress = progress
 
     # Path handling
-    def get_job_file(self, base_dir: Path) -> Path:
+    def get_job_file(self, base_dir: PathLike) -> Path:
         """Get the JSON job file path for a job."""
-        return base_dir / self.state.value / f"{self.id}.json"
+        return Path(base_dir) / self.state.value / f"{self.id}.json"
 
-    def get_result_dir(self, base_dir: Path) -> Path:
+    def get_result_dir(self, base_dir: PathLike) -> Path:
         """Get the result directory for a job."""
-        return base_dir / RESULT_DIR / self.id
+        return Path(base_dir) / RESULT_DIR / self.id
 
-    def save(self, base_dir: Path) -> None:
+    def save(self, base_dir: PathLike) -> None:
         """Save job to a JSON file."""
         job_file = self.get_job_file(base_dir)
         job_file.write_text(json.dumps(self.to_dict(), indent=2))
 
-    def load_result(self, base_dir: Path) -> dict[str, Any]:
+    def load_result(self, base_dir: PathLike) -> dict[str, Any]:
         result_file = self.get_result_dir(base_dir) / RESULTS_FILE
         if not result_file.exists():
             return {}
@@ -136,7 +137,7 @@ class Job:
 
 
 class JobQueue:
-    def __init__(self, base_dir: str | Path) -> None:
+    def __init__(self, base_dir: PathLike) -> None:
         """
         Initialize job queue with base directory.
         """
