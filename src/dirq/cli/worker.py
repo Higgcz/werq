@@ -5,6 +5,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+from rich.table import Table
+
 from dirq import Job, JobQueue, Worker
 
 
@@ -63,18 +66,43 @@ class ShellWorker(Worker):
 
 def worker_command(args: Any) -> None:
     """Handle the worker command."""
-    try:
-        queue = JobQueue(args.jobs_dir)
-        # worker = DefaultWorker(queue, stop_when_done=args.rm)
-        worker = ShellWorker(queue, stop_when_done=args.rm)
+    available_workers = {
+        "shell": ShellWorker,
+        "default": DefaultWorker,
+    }
 
-        print(f"Starting worker '{worker.__class__.__name__}' (jobs dir: {args.jobs_dir})")
-        # print(f"Starting worker (jobs dir: {args.jobs_dir})")
+    console = Console()
+    if args.list:
+        table = Table(title="Available Workers")
+        table.add_column("Name", style="bold")
+
+        for name in available_workers:
+            table.add_row(name)
+
+        console.print(table)
+        console.print("Use `-n/--name` to start a specific worker.")
+        console.print("You can pass a module path to start a custom worker.")
+        console.print("Example: `dirq worker -n mymodule.MyWorker`")
+        return
+    try:
+        # Try to load the worker class
+        # if the worker class is not available, assume it's a module path and try to import
+        worker_class = available_workers.get(args.name, None)
+        if worker_class is None:
+            import importlib
+
+            module, class_name = args.name.rsplit(".", 1)
+            worker_class = importlib.import_module(module).__dict__[class_name]
+
+        queue = JobQueue(args.jobs_dir)
+        worker = worker_class(queue, stop_when_done=args.rm)
+
+        console.print(f"Starting worker '{worker.__class__.__name__}' (jobs dir: {args.jobs_dir})")
 
         try:
             worker.run(poll_interval=args.poll_interval)
         except KeyboardInterrupt:
-            print("\nWorker stopped.")
+            console.print("\nWorker stopped.")
 
     except Exception as e:
-        print(f"Error starting worker: {e}")
+        console.print(f"Error starting worker: {e}")
