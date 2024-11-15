@@ -77,8 +77,6 @@ class Job:
     def duration(self) -> Optional[float]:
         """Get the duration of the job in minutes."""
         match self.state:
-            case JobState.QUEUED:
-                return (datetime.now() - self.created_at).total_seconds() / 60.0
             case JobState.RUNNING:
                 if self.started_at:
                     return (datetime.now() - self.started_at).total_seconds() / 60.0
@@ -86,6 +84,8 @@ class Job:
             case JobState.COMPLETED | JobState.FAILED:
                 if self.started_at and self.finished_at:
                     return (self.finished_at - self.started_at).total_seconds() / 60.0
+                return None
+            case _:
                 return None
 
     # State transitions
