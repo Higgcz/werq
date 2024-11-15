@@ -91,7 +91,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
 
     # Parse and execute
     parsed_args = parser.parse_args(args)
-
     setup_logging(parsed_args.verbose)
-
-    parsed_args.func(parsed_args)
+    
+    # Convert namespace to dict and call the function
+    parsed_args.func(**vars(parsed_args))

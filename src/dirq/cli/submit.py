@@ -4,7 +4,7 @@ import json
 import shlex
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 from rich.console import Console
@@ -14,13 +14,13 @@ from dirq import DirQError, JobQueue, JobState
 from dirq.dirq import JobID
 
 
-def submit_command(args: Any) -> None:
+def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = False, **kwargs) -> None:
     """Handle the submit command."""
     try:
-        print(args.file_or_command)
+        print(file_or_command)
 
         # Check if file or command
-        match args.file_or_command:
+        match file_or_command:
             case [file] if file.endswith(".json") and Path(file).is_file():
                 params = json.loads(Path(file).read_text())
             case _:
@@ -32,12 +32,12 @@ def submit_command(args: Any) -> None:
                 }
 
         # Initialize queue and submit job
-        queue = JobQueue(args.jobs_dir)
+        queue = JobQueue(jobs_dir)
         job = queue.submit(params)
         print(f"Submitted job: {job.id} ({params})")
 
         # Monitor if requested
-        if args.monitor:
+        if monitor:
             monitor_job(queue, job.id)
 
     except json.JSONDecodeError as e:
@@ -48,7 +48,7 @@ def submit_command(args: Any) -> None:
         print(f"Unexpected error: {e}")
 
 
-def list_command(args: Any) -> None:
+def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
     """Handle the list command."""
     try:
         queue = JobQueue(args.jobs_dir)
@@ -141,7 +141,7 @@ def monitor_job(queue: JobQueue, job_id: str, interval: float = 1.0) -> None:
         print(f"\nError monitoring job: {e}")
 
 
-def monitor_command(args: Any) -> None:
+def monitor_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     """Handle the monitor command."""
     try:
         queue = JobQueue(args.jobs_dir)
@@ -150,7 +150,7 @@ def monitor_command(args: Any) -> None:
         print(f"Error starting monitoring: {e}")
 
 
-def rm_command(args: Any) -> None:
+def rm_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     """Handle the rm command."""
     try:
         queue = JobQueue(args.jobs_dir)
@@ -165,7 +165,7 @@ def rm_command(args: Any) -> None:
         print(f"Error deleting job: {e}")
 
 
-def info_command(args: Any) -> None:
+def info_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     """Show information about the job."""
     try:
         console = Console()

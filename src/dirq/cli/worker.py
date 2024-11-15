@@ -64,7 +64,14 @@ class ShellWorker(Worker):
             raise ValueError(f"Command failed with exit code {e.returncode}: {e.stderr}") from e
 
 
-def worker_command(args: Any) -> None:
+def worker_command(
+    jobs_dir: Path,
+    name: Optional[str] = None,
+    list: bool = False,
+    poll_interval: float = 1.0,
+    rm: bool = False,
+    **kwargs,
+) -> None:
     """Handle the worker command."""
     available_workers = {
         "shell": ShellWorker,
@@ -72,7 +79,7 @@ def worker_command(args: Any) -> None:
     }
 
     console = Console()
-    if args.list:
+    if list:
         table = Table(title="Available Workers")
         table.add_column("Name", style="bold")
 
@@ -87,20 +94,20 @@ def worker_command(args: Any) -> None:
     try:
         # Try to load the worker class
         # if the worker class is not available, assume it's a module path and try to import
-        worker_class = available_workers.get(args.name, None)
+        worker_class = available_workers.get(name, None)
         if worker_class is None:
             import importlib
 
-            module, class_name = args.name.rsplit(".", 1)
+            module, class_name = name.rsplit(".", 1)
             worker_class = importlib.import_module(module).__dict__[class_name]
 
-        queue = JobQueue(args.jobs_dir)
-        worker = worker_class(queue, stop_when_done=args.rm)
+        queue = JobQueue(jobs_dir)
+        worker = worker_class(queue, stop_when_done=rm)
 
-        console.print(f"Starting worker '{worker.__class__.__name__}' (jobs dir: {args.jobs_dir})")
+        console.print(f"Starting worker '{worker.__class__.__name__}' (jobs dir: {jobs_dir})")
 
         try:
-            worker.run(poll_interval=args.poll_interval)
+            worker.run(poll_interval=poll_interval)
         except KeyboardInterrupt:
             console.print("\nWorker stopped.")
 
