@@ -1,11 +1,24 @@
 """Command line interface for dirq."""
 
 import argparse
+import logging
 from pathlib import Path
 from typing import Optional, Sequence
 
+from rich.logging import RichHandler
+
 from .submit import info_command, list_command, monitor_command, submit_command
 from .worker import worker_command
+
+
+def setup_logging(verbose: bool) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            RichHandler(rich_tracebacks=True, markup=True),
+        ],
+    )
 
 
 def main(args: Optional[Sequence[str]] = None) -> None:
@@ -17,6 +30,11 @@ def main(args: Optional[Sequence[str]] = None) -> None:
         type=Path,
         default=Path("jobs"),
         help="Jobs directory (default: ./jobs)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -68,4 +86,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
 
     # Parse and execute
     parsed_args = parser.parse_args(args)
+
+    setup_logging(parsed_args.verbose)
+
     parsed_args.func(parsed_args)

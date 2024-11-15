@@ -145,3 +145,5 @@ dmypy.json
 .aider.*
 jobs
 job.json
+.ruff_cache
+.aider*

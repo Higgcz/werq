@@ -1,9 +1,10 @@
 import json
+import logging
 import shutil
 import time
 import traceback
 from abc import ABC, abstractmethod
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -15,6 +16,8 @@ from filelock import BaseFileLock, FileLock
 
 from .exceptions import JobStateError
 
+logger = logging.getLogger(__name__)
+
 
 class JobState(str, Enum):
     QUEUED = "queued"
@@ -24,6 +27,8 @@ class JobState(str, Enum):
 
 
 RESULT_DIR = Path("completed")
+RESULTS_FILE = "results.json"
+ERROR_FILE = "error.txt"
 
 JobID = NewType("JobID", str)
 
@@ -68,6 +73,21 @@ class Job:
     def __str__(self) -> str:
         return f"Job {self.id} ({self.state})"
 
+    @property
+    def duration(self) -> Optional[float]:
+        """Get the duration of the job in minutes."""
+        match self.state:
+            case JobState.QUEUED:
+                return (datetime.now() - self.created_at).total_seconds() / 60.0
+            case JobState.RUNNING:
+                if self.started_at:
+                    return (datetime.now() - self.started_at).total_seconds() / 60.0
+                return None
+            case JobState.COMPLETED | JobState.FAILED:
+                if self.started_at and self.finished_at:
+                    return (self.finished_at - self.started_at).total_seconds() / 60.0
+                return None
+
     # State transitions
     def start(self) -> None:
         if self.state != JobState.QUEUED:
@@ -78,7 +98,7 @@ class Job:
     def complete(self) -> None:
         if self.state != JobState.RUNNING:
             raise JobStateError(f"Cannot complete job {self.id} in state {self.state}")
-        self.update_progress(100.0)
+        self.update_progress(1.0)
         self.state = JobState.COMPLETED
         self.finished_at = datetime.now()
 
@@ -108,9 +128,15 @@ class Job:
         job_file = self.get_job_file(base_dir)
         job_file.write_text(json.dumps(self.to_dict(), indent=2))
 
+    def load_result(self, base_dir: Path) -> dict[str, Any]:
+        result_file = self.get_result_dir(base_dir) / RESULTS_FILE
+        if not result_file.exists():
+            return {}
+        return json.loads(result_file.read_text())
+
 
 class JobQueue:
-    def __init__(self, base_dir: Path) -> None:
+    def __init__(self, base_dir: str | Path) -> None:
         """
         Initialize job queue with base directory.
         """
@@ -163,7 +189,8 @@ class JobQueue:
             try:
                 job = Job.from_dict(json.loads(jobs[0].read_text()))
             except Exception as e:
-                print(f"Error reading job file {jobs[0]}: {e}")
+                logger.error(f"Error reading job file {jobs[0]}: {e}")
+                logger.debug(traceback.format_exc())
                 shutil.move(jobs[0], self.base_dir / JobState.FAILED.value)
                 return None
 
@@ -177,8 +204,10 @@ class JobQueue:
                 # Move the job to the running directory
                 job.save(self.base_dir)
             except Exception as e:
-                print(f"Error starting job {job.id}: {e}")
-                self.fail(job, f"Error starting job: {str(e)}")
+                error = traceback.format_exc()
+                logger.error(f"Error starting job {job.id}: {e}")
+                logger.debug(error)
+                self.fail(job, f"Error starting job: {str(e)}", error)
                 return None
 
         return job
@@ -192,14 +221,17 @@ class JobQueue:
             job_file.unlink()
             job.save(self.base_dir)
 
-    def fail(self, job: Job, error: str) -> None:
+    def fail(self, job: Job, error_msg: str, error_traceback: str) -> None:
         """Mark job as failed."""
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
-            job.fail(error)
+            job.fail(error_msg)
             # Remove the job from the running directory
             job_file.unlink()
             job.save(self.base_dir)
+
+        error_file = job.get_result_dir(self.base_dir) / ERROR_FILE
+        error_file.write_text(f"{error_msg}\n\n{error_traceback}")
 
     def get_result_dir(self, job: Job) -> Path:
         """Get the result directory for a job."""
@@ -221,10 +253,10 @@ class JobQueue:
                     try:
                         return Job.from_dict(json.loads(job_file.read_text()))
                     except Exception as e:
-                        print(f"Error reading job {job_id}: {e}")
+                        logger.error(f"Error reading job {job_id}: {e}")
         return None
 
-    def list_jobs(self, *states: JobState) -> list[Job]:
+    def list_jobs(self, *states: JobState, reverse: bool = False) -> list[Job]:
         """List all jobs in the queue."""
         jobs = []
         states = states or tuple(JobState)
@@ -234,8 +266,8 @@ class JobQueue:
                     try:
                         jobs.append(Job.from_dict(json.loads(job_file.read_text())))
                     except Exception as e:
-                        print(f"Error reading job {job_file}: {e}")
-        return sorted(jobs, key=lambda job: job.created_at)
+                        logger.error(f"Error reading job {job_file}: {e}")
+        return sorted(jobs, key=lambda job: job.created_at, reverse=reverse)
 
 
 class Worker(ABC):
@@ -245,13 +277,16 @@ class Worker(ABC):
         self.stop_when_done = stop_when_done
 
     @abstractmethod
-    def process_job(self, job: Job, result_dir: Path) -> None:
+    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
         """
         Process a single job. This method should be implemented by the user.
 
         Args:
-            job: Job object
-            result_dir: Directory where results should be saved
+            job (Job): Job to process
+            result_dir (Path): Directory to store results
+
+        Returns:
+            Mapping[str, Any]: Results of the job
         """
         raise NotImplementedError("Worker.process_job must be implemented")
 
@@ -271,19 +306,26 @@ class Worker(ABC):
                     result_dir.mkdir(parents=True, exist_ok=True)
 
                     try:
-                        self.process_job(job, result_dir)
+                        results = self.process_job(job, result_dir)
                         self.queue.complete(job)
+
+                        with open(result_dir / RESULTS_FILE, "w") as f:
+                            json.dump(results, f)
+
                     except Exception as e:
-                        self.queue.fail(job, str(e))
+                        error = traceback.format_exc()
+                        logger.error(f"Error processing job {job.id}: {e}")
+                        logger.debug(error)
+                        self.queue.fail(job, str(e), error)
                 else:
                     no_jobs_count += 1
                     if self.stop_when_done and no_jobs_count > 4:
-                        print("No jobs found. Stopping worker.")
+                        logger.error("No jobs found. Stopping worker.")
                         break
 
             except Exception as e:
-                print(f"Critical worker error: {e}")
-                print(traceback.format_exc())
+                logger.error(f"Critical worker error: {e}")
+                logger.debug(traceback.format_exc())
                 # Continue running despite errors
 
             time.sleep(poll_interval)
