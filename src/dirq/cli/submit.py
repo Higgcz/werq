@@ -158,7 +158,7 @@ def rm_command(args: Any) -> None:
         if not job:
             print(f"Job {args.job_id} not found")
             return
-            
+
         queue.delete(job)
         print(f"Job {args.job_id} deleted successfully")
     except Exception as e:
