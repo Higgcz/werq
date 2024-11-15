@@ -150,6 +150,21 @@ def monitor_command(args: Any) -> None:
         print(f"Error starting monitoring: {e}")
 
 
+def rm_command(args: Any) -> None:
+    """Handle the rm command."""
+    try:
+        queue = JobQueue(args.jobs_dir)
+        job = queue.get_job(JobID(args.job_id))
+        if not job:
+            print(f"Job {args.job_id} not found")
+            return
+            
+        queue.delete(job)
+        print(f"Job {args.job_id} deleted successfully")
+    except Exception as e:
+        print(f"Error deleting job: {e}")
+
+
 def info_command(args: Any) -> None:
     """Show information about the job."""
     try:

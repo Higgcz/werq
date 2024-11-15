@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 from rich.logging import RichHandler
 
-from .submit import info_command, list_command, monitor_command, submit_command
+from .submit import info_command, list_command, monitor_command, rm_command, submit_command
 from .worker import worker_command
 
 
@@ -83,6 +83,11 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     info_parser = subparsers.add_parser("info", help="Show information about the job")
     info_parser.add_argument("job_id", help="Job ID to show information")
     info_parser.set_defaults(func=info_command)
+
+    # Rm command
+    rm_parser = subparsers.add_parser("rm", help="Remove a job")
+    rm_parser.add_argument("job_id", help="Job ID to remove")
+    rm_parser.set_defaults(func=rm_command)
 
     # Parse and execute
     parsed_args = parser.parse_args(args)
