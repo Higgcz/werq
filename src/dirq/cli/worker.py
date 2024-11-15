@@ -3,7 +3,7 @@
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.table import Table

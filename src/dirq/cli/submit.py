@@ -26,7 +26,7 @@ def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = F
             case _:
                 params = {
                     "command": (
-                        shlex.join(args.file_or_command) if len(args.file_or_command) > 1 else args.file_or_command[0]
+                        shlex.join(file_or_command) if len(file_or_command) > 1 else file_or_command[0]
                     ),
                     "type": "shell",
                 }
@@ -51,7 +51,7 @@ def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = F
 def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
     """Handle the list command."""
     try:
-        queue = JobQueue(args.jobs_dir)
+        queue = JobQueue(jobs_dir)
         jobs = queue.list_jobs()
 
         # Convert jobs to a DataFrame
@@ -69,8 +69,8 @@ def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
         # Sort by creation time
         df = df.sort_values("created_at", ascending=False)
 
-        if args.limit:
-            df = df.head(args.limit)
+        if limit:
+            df = df.head(limit)
 
         df.state = df.state.str.upper()
         df.drop("params", axis=1, inplace=True)
@@ -144,8 +144,8 @@ def monitor_job(queue: JobQueue, job_id: str, interval: float = 1.0) -> None:
 def monitor_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     """Handle the monitor command."""
     try:
-        queue = JobQueue(args.jobs_dir)
-        monitor_job(queue, args.job_id)
+        queue = JobQueue(jobs_dir)
+        monitor_job(queue, job_id)
     except Exception as e:
         print(f"Error starting monitoring: {e}")
 
@@ -153,14 +153,14 @@ def monitor_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
 def rm_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     """Handle the rm command."""
     try:
-        queue = JobQueue(args.jobs_dir)
-        job = queue.get_job(JobID(args.job_id))
+        queue = JobQueue(jobs_dir)
+        job = queue.get_job(JobID(job_id))
         if not job:
-            print(f"Job {args.job_id} not found")
+            print(f"Job {job_id} not found")
             return
 
         queue.delete(job)
-        print(f"Job {args.job_id} deleted successfully")
+        print(f"Job {job_id} deleted successfully")
     except Exception as e:
         print(f"Error deleting job: {e}")
 
@@ -170,10 +170,10 @@ def info_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
     try:
         console = Console()
 
-        queue = JobQueue(args.jobs_dir)
-        job = queue.get_job(JobID(args.job_id))
+        queue = JobQueue(jobs_dir)
+        job = queue.get_job(JobID(job_id))
         if not job:
-            console.print(f"Job {args.job_id} not found!")
+            console.print(f"Job {job_id} not found!")
             return
 
         # Display table with job information
