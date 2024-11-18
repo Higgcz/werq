@@ -32,6 +32,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
         help="Jobs directory (default: ./jobs)",
     )
     parser.add_argument(
+        "-v",
         "--verbose",
         action="store_true",
         help="Enable verbose logging",
@@ -71,7 +72,9 @@ def main(args: Optional[Sequence[str]] = None) -> None:
 
     # Worker command
     worker_parser = subparsers.add_parser("worker", help="Start a worker")
-    worker_parser.add_argument("--list", action="store_true", help="List available workers and exit")
+    worker_parser.add_argument(
+        "-l", "--list", action="store_true", help="List available workers and exit", dest="list_workers"
+    )
     worker_parser.add_argument("-n", "--name", help="Worker name to start")
     worker_parser.add_argument(
         "--poll-interval", type=float, default=1.0, help="Poll interval in seconds (default: 1.0)"

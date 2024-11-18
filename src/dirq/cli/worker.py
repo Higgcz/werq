@@ -67,7 +67,7 @@ class ShellWorker(Worker):
 def worker_command(
     jobs_dir: Path,
     name: str = "default",
-    list: bool = False,
+    list_workers: bool = False,
     poll_interval: float = 1.0,
     rm: bool = False,
     **kwargs,
@@ -79,7 +79,7 @@ def worker_command(
     }
 
     console = Console()
-    if list:
+    if list_workers:
         table = Table(title="Available Workers")
         table.add_column("Name", style="bold")
 

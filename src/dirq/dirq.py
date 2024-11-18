@@ -213,14 +213,24 @@ class JobQueue:
 
         return job
 
-    def complete(self, job: Job) -> None:
-        """Mark job as completed."""
+    def complete(self, job: Job, result: Optional[Mapping[str, Any]] = None) -> None:
+        """
+        Mark job as completed.
+
+        Args:
+            job (Job): Job to complete
+            result (Optional[dict[str, Any]], optional): Results of the job. Defaults to None.
+        """
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
             job.complete()
             # Remove the job from the running directory
             job_file.unlink()
             job.save(self.base_dir)
+
+            # Save results if provided
+            if result:
+                self.update_result(job, result)
 
     def fail(self, job: Job, error_msg: str, error_traceback: str) -> None:
         """Mark job as failed."""
@@ -244,6 +254,13 @@ class JobQueue:
         with self._with_lock(job_file):
             job.update_progress(progress)
             job.save(self.base_dir)
+
+    def update_result(self, job: Job, result: Mapping[str, Any]) -> None:
+        """Update job results."""
+        result_dir = job.get_result_dir(self.base_dir)
+        result_dir.mkdir(parents=True, exist_ok=True)
+        with open(result_dir / RESULTS_FILE, "w") as f:
+            json.dump(result, f)
 
     def get_job(self, job_id: JobID) -> Optional[Job]:
         """Get a job by ID."""
@@ -323,10 +340,7 @@ class Worker(ABC):
 
                     try:
                         results = self.process_job(job, result_dir)
-                        self.queue.complete(job)
-
-                        with open(result_dir / RESULTS_FILE, "w") as f:
-                            json.dump(results, f)
+                        self.queue.complete(job, results)
 
                     except Exception as e:
                         error = traceback.format_exc()
