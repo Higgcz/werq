@@ -4,7 +4,7 @@ import subprocess
 import time
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -15,7 +15,7 @@ from dirq import Job, JobQueue, Worker
 class DefaultWorker(Worker):
     """Default worker implementation for CLI usage."""
 
-    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
+    def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
         """Process a job with progress reporting."""
         print(f"\nProcessing job {job.id}")
         print(f"Parameters: {job.params}")
@@ -44,7 +44,7 @@ class DefaultWorker(Worker):
 class ShellWorker(Worker):
     """Shell worker implementation for CLI usage."""
 
-    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
+    def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
         """Process a job by executing a shell command."""
         print(f"\nProcessing job {job.id}")
         print(f"Parameters: {job.params}")
