@@ -4,7 +4,7 @@ import shutil
 import time
 import traceback
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -274,15 +274,32 @@ class JobQueue:
                         logger.error(f"Error reading job {job_id}: {e}")
         return None
 
-    def list_jobs(self, *states: JobState, reverse: bool = False) -> list[Job]:
-        """List all jobs in the queue."""
+    def list_jobs(
+        self,
+        *states: JobState,
+        filter_func: Optional[Callable[[Job], bool]] = None,
+        reverse: bool = False,
+    ) -> list[Job]:
+        """
+        List all jobs in the queue, optionally filtering them based on their parameters.
+
+        Args:
+            *states: Job states to include
+            filter_func: Function to filter jobs
+            reverse: Whether to reverse the order of the jobs
+
+        Returns:
+            list[Job]: List of jobs
+        """
         jobs = []
         states = states or tuple(JobState)
         for state in states:
             for job_file in (self.base_dir / state.value).glob("*.json"):
                 with self._with_lock(job_file):
                     try:
-                        jobs.append(Job.from_dict(json.loads(job_file.read_text())))
+                        job = Job.from_dict(json.loads(job_file.read_text()))
+                        if filter_func is None or filter_func(job):
+                            jobs.append(job)
                     except Exception as e:
                         logger.error(f"Error reading job {job_file}: {e}")
         return sorted(jobs, key=lambda job: job.created_at, reverse=reverse)
@@ -310,7 +327,7 @@ class Worker(ABC):
         self.stop_when_done = stop_when_done
 
     @abstractmethod
-    def process_job(self, job: Job, result_dir: Path) -> Mapping[str, Any]:
+    def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
         """
         Process a single job. This method should be implemented by the user.
 
@@ -339,7 +356,7 @@ class Worker(ABC):
                     result_dir.mkdir(parents=True, exist_ok=True)
 
                     try:
-                        results = self.process_job(job, result_dir)
+                        results = self.process_job(job=job, result_dir=result_dir)
                         self.queue.complete(job, results)
 
                     except Exception as e:
