@@ -1,7 +1,9 @@
 import json
 import shutil
 import time
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -88,9 +90,9 @@ def test_job_lifecycle(queue):
     assert job_out.id == job_test.id and job_out.state == JobState.RUNNING.value
 
     # Update progress
-    queue.update_progress(job_out, 50.0)
+    queue.update_progress(job_out, 0.5)
     job_out = queue.get_job(job_test.id)
-    assert job_out.progress == 50.0
+    assert job_out.progress == 0.5
 
     # Complete job
     queue.complete(job_out)
@@ -98,7 +100,7 @@ def test_job_lifecycle(queue):
     # Verify completed state
     job_out = queue.get_job(job_test.id)
     assert job_out.id == job_test.id and job_out.state == JobState.COMPLETED.value
-    assert job_out.progress == 100.0
+    assert job_out.progress == 1.0
     assert job_out.finished_at is not None
 
 
@@ -108,11 +110,17 @@ def test_failed_job(queue):
     job_out = queue.pop_next()  # Start job
 
     error_msg = "Test error message"
-    queue.fail(job_out, error_msg)
+    error_traceback = "Traceback (most recent call last) ..."
+    queue.fail(job_out, error_msg, error_traceback)
 
     job_out = queue.get_job(job_test.id)
     assert job_out.state == JobState.FAILED.value
     assert job_out.error == error_msg
+
+    # Check error traceback
+    # error_file = job_out.get_error_file(queue.base_dir)
+    # assert error_file.exists()
+    # assert error_file.read_text() == f"{error_msg}\n\n{error_traceback}"
 
 
 def test_concurrent_job_processing(queue):
@@ -126,7 +134,7 @@ def test_concurrent_job_processing(queue):
 
     # Try to get progress of non-running job
     with pytest.raises(JobStateError):
-        queue.update_progress(jobs[1], 50.0)
+        queue.update_progress(jobs[1], 0.5)
 
     # Complete first job and get next
     queue.complete(job_out)
@@ -142,19 +150,17 @@ class TestWorker(Worker):
         self.should_fail = should_fail
         self.processed_jobs = []
 
-    def process_job(self, job: Job, result_dir: Path) -> None:
+    def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
         self.processed_jobs.append(job.id)
         if self.should_fail:
             raise ValueError("Test failure")
 
         # Simulate some work
         for i in range(3):
-            self.queue.update_progress(job, (i + 1) * 33.3)
+            self.queue.update_progress(job, (i + 1) * 0.33)
             time.sleep(0.1)
 
-        # Save result
-        with open(result_dir / "result.txt", "w") as f:
-            f.write(str(job.params))
+        return job.params
 
 
 def test_worker_processing(queue):
@@ -173,7 +179,7 @@ def test_worker_processing(queue):
     # Check results
     result_path = queue.get_result_dir(job)
     assert result_path.exists()
-    assert (result_path / "result.txt").exists()
+    assert (result_path / "results.json").exists()
 
 
 def test_worker_failure(queue):

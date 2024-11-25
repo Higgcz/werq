@@ -124,6 +124,10 @@ class Job:
         """Get the result directory for a job."""
         return Path(base_dir) / RESULT_DIR / self.id
 
+    def get_error_file(self, base_dir: PathLike) -> Path:
+        """Get the error file for a job."""
+        return self.get_result_dir(base_dir) / ERROR_FILE
+
     def save(self, base_dir: PathLike) -> None:
         """Save job to a JSON file."""
         job_file = self.get_job_file(base_dir)
@@ -241,7 +245,8 @@ class JobQueue:
             job_file.unlink()
             job.save(self.base_dir)
 
-        error_file = job.get_result_dir(self.base_dir) / ERROR_FILE
+        error_file = job.get_error_file(self.base_dir)
+        error_file.parent.mkdir(parents=True, exist_ok=True)
         error_file.write_text(f"{error_msg}\n\n{error_traceback}")
 
     def get_result_dir(self, job: Job) -> Path:
