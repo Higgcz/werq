@@ -25,6 +25,12 @@ class DirQError(Exception):
     """
 
     def __init__(self, message: str, original_error: Optional[Exception] = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Human-readable error description
+            original_error: Optional underlying exception that caused this error
+        """
         super().__init__(message)
         self.original_error = original_error
 
