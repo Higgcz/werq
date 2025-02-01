@@ -2,7 +2,7 @@ exclude: '^docs/conf.py'
 
 repos:
   - repo: https://github.com/homebysix/pre-commit-macadmin
-    rev: v1.16.2
+    rev: v1.19.0
     hooks:
       - id: check-git-config-email
         args: ['--domains', 'nnaisense.com']
@@ -28,32 +28,11 @@ repos:
       - id: mixed-line-ending
         args: ['--fix=no']
 
-  - repo: https://github.com/pycqa/flake8
-    rev: '7.1.1'
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
     hooks:
-      - id: flake8
-        additional_dependencies:
-            - flake8-docstrings==1.6.0
-
-  - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.10.1
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/ambv/black
-    rev: 24.10.0
-    hooks:
-      - id: black
-        args: []
-
-  - repo: https://github.com/asottile/blacken-docs
-    rev: 1.19.1
-    hooks:
-    - id: blacken-docs
-      additional_dependencies:
-          - black==24.10.0
-
-  - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.0
-    hooks:
-      - id: nbstripout
+      # Run the linter.
+      - id: ruff
+        args: [--fix]
+      # Run the formatter.
+      - id: ruff-format

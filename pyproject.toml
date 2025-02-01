@@ -1,14 +1,7 @@
-[tool.ruff]
-src = ["src"]
-line-length = 120
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "B", "Q"]
-ignore = []
-
-[tool.ruff.lint.isort]
-known-local-folder = ["dirq"]
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --cov=dirq"
+testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -17,36 +10,25 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra --cov=dirq"
-testpaths = ["tests"]
-
-[tool.black]
+[tool.ruff]
+src = ["src"]
 line-length = 120
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # Exclude files and directories
-  # black will exclude everything in .gitignore by default
-)/
-'''
+target-version = "py311"
 
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-include_trailing_comma = true
-known_third_party = ["numpy", "pytest", "torch"]
-known_first_party = ["prime"]
-known_local_folder = "dirq"
-force_grid_wrap = 0
-use_parentheses = true
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "B", "Q", "D"]
+ignore = []
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-local-folder = ["dirq"]
 
 [tool.setuptools_scm]
-write_to = "src/dirq/__version.py"
-write_to_template = '__version__ = "{version}"'
+version_file = "src/moe_strategies/__version.py"
+version_file_template = '__version__ = "{version}"'
 fallback_version = "0.0"
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4"]
-build-backend = "setuptools.build_meta"

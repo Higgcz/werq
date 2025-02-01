@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Setup script for the Python package."""
 
 import setuptools
 

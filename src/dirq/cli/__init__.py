@@ -12,6 +12,7 @@ from .worker import worker_command
 
 
 def setup_logging(verbose: bool) -> None:
+    """Setup logging for the CLI."""
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

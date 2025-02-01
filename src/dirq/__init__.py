@@ -1,5 +1,4 @@
-"""
-dirq - Simple directory-based job queue system.
+"""dirq - Simple directory-based job queue system.
 
 This package provides a simple, file-system based job queue system
 that's perfect for small to medium workloads where simplicity
