@@ -122,6 +122,11 @@ class Job:
         )
 
     def __str__(self) -> str:
+        """Return a string representation of the job.
+
+        Returns:
+            str: String in format 'Job <id> (<state>)'
+        """
         return f"Job {self.id} ({self.state})"
 
     @property
