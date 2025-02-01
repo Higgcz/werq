@@ -1,3 +1,15 @@
+"""Directory-based job queue implementation.
+
+This module provides a simple job queue system that uses the filesystem for storage.
+Jobs progress through different states (queued, running, completed, failed) and
+results are stored in a directory structure.
+
+Key classes:
+- Job: Represents a single job with its parameters and state
+- JobQueue: Manages the queue of jobs and their state transitions
+- Worker: Abstract base class for implementing job processors
+"""
+
 import json
 import logging
 import shutil
@@ -36,6 +48,21 @@ PathLike = str | Path
 
 @dataclass
 class Job:
+    """Represents a job in the queue system.
+
+    A job progresses through different states (queued -> running -> completed/failed)
+    and maintains metadata about its execution including timing and progress.
+
+    Attributes:
+        id: Unique identifier for the job
+        params: Dictionary of parameters for the job
+        state: Current state of the job (queued, running, completed, failed)
+        created_at: Timestamp when the job was created
+        started_at: Timestamp when the job started running (None if not started)
+        finished_at: Timestamp when the job finished (None if not finished)
+        error: Error message if the job failed (None if not failed)
+        progress: Float between 0 and 1 indicating job progress
+    """
     id: JobID
     params: dict[str, Any]
     state: JobState = JobState.QUEUED
@@ -47,6 +74,11 @@ class Job:
 
     # Serialization
     def to_dict(self) -> dict[str, Any]:
+        """Convert the job to a dictionary for serialization.
+
+        Returns:
+            Dictionary representation of the job
+        """
         return {
             "id": self.id,
             "state": self.state.value,
@@ -60,6 +92,14 @@ class Job:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Job":
+        """Create a Job instance from a dictionary.
+
+        Args:
+            data: Dictionary containing job data
+
+        Returns:
+            New Job instance
+        """
         return cls(
             id=JobID(data["id"]),
             state=JobState(data["state"]),
@@ -141,6 +181,20 @@ class Job:
 
 
 class JobQueue:
+    """Manages a directory-based job queue.
+
+    The JobQueue handles job submissions, state transitions, and result storage.
+    It uses a directory structure to maintain job states and file locks for
+    thread/process safety.
+
+    The directory structure is:
+        base_dir/
+            queued/     - New jobs waiting to be processed
+            running/    - Jobs currently being processed
+            completed/  - Successfully completed jobs
+            failed/     - Failed jobs
+            completed/  - Directory containing job results
+    """
     def __init__(self, base_dir: PathLike) -> None:
         """Initialize job queue with base directory."""
         self.base_dir = Path(base_dir)
@@ -321,6 +375,14 @@ class JobQueue:
 
 
 class Worker(ABC):
+    """Abstract base class for job processing workers.
+
+    Workers handle the actual processing of jobs from the queue. Subclasses must
+    implement the process_job method to define how jobs are processed.
+
+    The worker can run continuously or stop when the queue is empty based on
+    the stop_when_done parameter.
+    """
     def __init__(self, queue: JobQueue, stop_when_done: bool = False) -> None:
         """Initialize worker with a job queue."""
         self.queue = queue
