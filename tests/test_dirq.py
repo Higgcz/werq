@@ -33,12 +33,12 @@ def temp_dir(tmp_path):
 
 
 @pytest.fixture
-def queue(temp_dir):
+def queue(temp_dir) -> JobQueue:
     """Create a JobQueue instance with temporary directory."""
     return JobQueue(temp_dir)
 
 
-def test_job_submission(queue):
+def test_job_submission(queue: JobQueue):
     """Test basic job submission functionality.
 
     Tests that:
@@ -62,14 +62,14 @@ def test_job_submission(queue):
     assert "created_at" in job_data
 
 
-def test_list_jobs_empty(queue):
+def test_list_jobs_empty(queue: JobQueue):
     """Test lising jobs with an empty queue."""
     jobs = queue.list_jobs()
     assert isinstance(jobs, list)
     assert len(jobs) == 0
 
 
-def test_list_jobs(queue):
+def test_list_jobs(queue: JobQueue):
     """Test listing jobs with multiple jobs."""
     # Submit jobs
     job1 = queue.submit({"test": 1})
@@ -87,28 +87,32 @@ def test_list_jobs(queue):
     assert jobs[0].state == JobState.RUNNING.value and jobs[1].state == JobState.QUEUED.value
 
 
-def test_job_lifecycle(queue):
+def test_job_lifecycle(queue: JobQueue):
     """Test complete job lifecycle."""
     # Submit job
     job_test = queue.submit({"test": "lifecycle"})
 
     # Verify queued state
     job_out = queue.get_job(job_test.id)
+    assert job_out is not None
     assert job_out.id == job_test.id and job_out.state == JobState.QUEUED.value
 
     # Start job
     job_running = queue.pop_next()
+    assert job_running is not None
     assert job_running.id == job_test.id
     assert job_running.state == JobState.RUNNING.value
     assert job_running.params == job_test.params
 
     # Verify running state
     job_out = queue.get_job(job_test.id)
+    assert job_out is not None
     assert job_out.id == job_test.id and job_out.state == JobState.RUNNING.value
 
     # Update progress
     queue.update_progress(job_out, 0.5)
     job_out = queue.get_job(job_test.id)
+    assert job_out is not None
     assert job_out.progress == 0.5
 
     # Complete job
@@ -116,21 +120,24 @@ def test_job_lifecycle(queue):
 
     # Verify completed state
     job_out = queue.get_job(job_test.id)
+    assert job_out is not None
     assert job_out.id == job_test.id and job_out.state == JobState.COMPLETED.value
     assert job_out.progress == 1.0
     assert job_out.finished_at is not None
 
 
-def test_failed_job(queue):
+def test_failed_job(queue: JobQueue):
     """Test job failure handling."""
     job_test = queue.submit({"test": "failure"})
     job_out = queue.pop_next()  # Start job
+    assert job_out is not None
 
     error_msg = "Test error message"
     error_traceback = "Traceback (most recent call last) ..."
     queue.fail(job_out, error_msg, error_traceback)
 
     job_out = queue.get_job(job_test.id)
+    assert job_out is not None
     assert job_out.state == JobState.FAILED.value
     assert job_out.error == error_msg
 
@@ -140,13 +147,14 @@ def test_failed_job(queue):
     # assert error_file.read_text() == f"{error_msg}\n\n{error_traceback}"
 
 
-def test_concurrent_job_processing(queue):
+def test_concurrent_job_processing(queue: JobQueue):
     """Test that jobs are processed one at a time."""
     jobs = [queue.submit({"test": i}) for i in range(3)]
     assert len(queue.list_jobs()) == 3
 
     # Get first job
     job_out = queue.pop_next()
+    assert job_out is not None
     assert job_out.id == jobs[0].id
 
     # Try to get progress of non-running job
@@ -156,6 +164,7 @@ def test_concurrent_job_processing(queue):
     # Complete first job and get next
     queue.complete(job_out)
     job_out = queue.pop_next()
+    assert job_out is not None
     assert job_out.id == jobs[1].id
 
 
@@ -206,7 +215,7 @@ class TestWorker(Worker):
         return job.params
 
 
-def test_worker_processing(queue):
+def test_worker_processing(queue: JobQueue):
     """Test worker job processing."""
     # Submit test job
     job = queue.submit({"test": "worker"})
@@ -217,6 +226,7 @@ def test_worker_processing(queue):
 
     # Verify job was completed
     job_out = queue.get_job(job.id)
+    assert job_out is not None
     assert job_out.state == JobState.COMPLETED.value
 
     # Check results
@@ -225,7 +235,7 @@ def test_worker_processing(queue):
     assert (result_path / "results.json").exists()
 
 
-def test_worker_failure(queue):
+def test_worker_failure(queue: JobQueue):
     """Test worker handling of job failures."""
     job = queue.submit({"test": "failure"})
 
@@ -233,34 +243,39 @@ def test_worker_failure(queue):
     worker.run(poll_interval=0.1)  # This will run forever
 
     job_out = queue.get_job(job.id)
+    assert job_out is not None
     assert job_out.state == JobState.FAILED.value
-    assert "Test failure" in job_out.error
+    assert job_out.error and "Test failure" in job_out.error
 
 
-def test_job_duration(queue):
+def test_job_duration(queue: JobQueue):
     """Test job duration calculation in different states."""
     job = queue.submit({"test": "duration"})
     assert job.duration is None  # Queued job has no duration
 
     job = queue.pop_next()
+    assert job is not None
     assert job.duration is not None  # Running job has duration
     assert job.duration >= 0
 
     queue.complete(job)
     job = queue.get_job(job.id)
+    assert job is not None
     assert job.duration is not None  # Completed job has duration
     assert job.duration >= 0
 
     # Test failed job duration
     job2 = queue.submit({"test": "duration2"})
     job2 = queue.pop_next()
+    assert job2 is not None
     queue.fail(job2, "Test error", "Test traceback")
     job2 = queue.get_job(job2.id)
+    assert job2 is not None
     assert job2.duration is not None
     assert job2.duration >= 0
 
 
-def test_invalid_state_transitions(queue):
+def test_invalid_state_transitions(queue: JobQueue):
     """Test invalid job state transitions."""
     job = queue.submit({"test": "state"})
 
@@ -278,6 +293,7 @@ def test_invalid_state_transitions(queue):
 
     # Start the job
     job = queue.pop_next()
+    assert job is not None
 
     # Can't start a running job
     with pytest.raises(JobStateError):
@@ -291,15 +307,18 @@ def test_invalid_state_transitions(queue):
         queue.update_progress(job, 0.5)
 
 
-def test_list_jobs_filtering(queue):
+def test_list_jobs_filtering(queue: JobQueue):
     """Test job listing with filters and ordering."""
     # Create jobs in different states
     job1 = queue.submit({"test": 1})
     job2 = queue.submit({"test": 2})
     job3 = queue.submit({"test": 3})
 
+    assert job1 is not None and job2 is not None and job3 is not None
+
     # Get one running and one completed
     running_job = queue.pop_next()
+    assert running_job is not None
     queue.complete(running_job)
     queue.pop_next()
 
@@ -327,12 +346,13 @@ def test_list_jobs_filtering(queue):
     assert all(j.params["test"] > 1 for j in filtered)
 
 
-def test_delete_job(queue):
+def test_delete_job(queue: JobQueue):
     """Test job deletion functionality."""
     job = queue.submit({"test": "delete"})
 
     # Create some result data
     job = queue.pop_next()
+    assert job is not None
     queue.complete(job, {"result": "test"})
 
     # Verify job exists
@@ -350,6 +370,7 @@ def test_delete_job(queue):
     # Create new job and delete with result dir
     job = queue.submit({"test": "delete2"})
     job = queue.pop_next()
+    assert job is not None
     queue.complete(job, {"result": "test"})
 
     assert queue.delete(job, delete_result_dir=True)
@@ -357,15 +378,14 @@ def test_delete_job(queue):
     assert not job.get_result_dir(queue.base_dir).exists()
 
 
-def test_lock_file_cleanup(queue):
+def test_lock_file_cleanup(queue: JobQueue, tmp_path: Path):
     """Test that lock files are properly cleaned up."""
-    job = queue.submit({"test": "lock"})
-    job_file = job.get_job_file(queue.base_dir)
-
     # Lock file should be created and removed
-    with queue._with_lock(job_file):
-        # Lock files are created in base directory
-        lock_path = Path(str(job_file) + ".lock")
-        assert lock_path.exists()
-    
+    with queue._with_lock(tmp_path) as lock:
+        print(lock.lock_file)
+        lock_path = tmp_path.with_suffix(".lock")
+        print(lock_path)
+        assert str(lock_path) == lock.lock_file
+        assert lock_path.is_file()
+
     assert not lock_path.exists()

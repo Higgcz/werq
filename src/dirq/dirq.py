@@ -310,7 +310,7 @@ class JobQueue:
         return JobID(str(int(time.time_ns())))
 
     @contextmanager
-    def _with_lock(self, file_path: Path) -> Generator[BaseFileLock, None, None]:
+    def _with_lock(self, file_path: str | Path) -> Generator[BaseFileLock, None, None]:
         """Get a file lock for a given file path.
 
         Creates a lock file to ensure thread/process-safe operations on job files.
@@ -322,10 +322,10 @@ class JobQueue:
         Yields:
             BaseFileLock: A file lock object that can be used in a with statement
         """
-        lock_path = file_path.with_suffix(".lock")
-        # Remove the state directory from the lock path
-        lock_path = Path(*lock_path.parts[:-2], lock_path.name)
-        yield FileLock(lock_path)
+        lock_path = Path(file_path).with_suffix(".lock")
+        with FileLock(lock_path) as lock_file:
+            yield lock_file
+
         lock_path.unlink(missing_ok=True)
 
     def submit(self, params: dict[str, Any]) -> Job:
