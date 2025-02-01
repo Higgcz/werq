@@ -117,7 +117,11 @@ class Job:
 
     @property
     def duration(self) -> Optional[float]:
-        """Get the duration of the job in minutes."""
+        """Get the duration of the job in minutes.
+
+        Returns:
+            float: Duration in minutes if the job has started, None otherwise
+        """
         match self.state:
             case JobState.RUNNING:
                 if self.started_at:
@@ -132,12 +136,24 @@ class Job:
 
     # State transitions
     def start(self) -> None:
+        """Start the job by transitioning it to the running state.
+
+        Raises:
+            JobStateError: If the job is not in the queued state
+        """
         if self.state != JobState.QUEUED:
             raise JobStateError(f"Cannot start job {self.id} in state {self.state}")
         self.state = JobState.RUNNING
         self.started_at = datetime.now()
 
     def complete(self) -> None:
+        """Mark the job as completed.
+
+        Sets progress to 100% and records completion timestamp.
+
+        Raises:
+            JobStateError: If the job is not in the running state
+        """
         if self.state != JobState.RUNNING:
             raise JobStateError(f"Cannot complete job {self.id} in state {self.state}")
         self.update_progress(1.0)
@@ -145,6 +161,14 @@ class Job:
         self.finished_at = datetime.now()
 
     def fail(self, err: str) -> None:
+        """Mark the job as failed with an error message.
+
+        Args:
+            err: Error message describing the failure
+
+        Raises:
+            JobStateError: If the job is not in the running state
+        """
         if self.state != JobState.RUNNING:
             raise JobStateError(f"Cannot fail job {self.id} in state {self.state}")
         self.state = JobState.FAILED
@@ -152,29 +176,70 @@ class Job:
         self.error = err
 
     def update_progress(self, progress: float) -> None:
+        """Update the job's progress.
+
+        Args:
+            progress: Progress value between 0.0 and 1.0
+
+        Raises:
+            JobStateError: If the job is not in the running state
+        """
         if self.state != JobState.RUNNING:
             raise JobStateError(f"Cannot update progress for job {self.id} in state {self.state}")
         self.progress = progress
 
     # Path handling
     def get_job_file(self, base_dir: PathLike) -> Path:
-        """Get the JSON job file path for a job."""
+        """Get the JSON job file path for a job.
+
+        Args:
+            base_dir: Base directory of the job queue
+
+        Returns:
+            Path to the job's JSON file within its state directory
+        """
         return Path(base_dir) / self.state.value / f"{self.id}.json"
 
     def get_result_dir(self, base_dir: PathLike) -> Path:
-        """Get the result directory for a job."""
+        """Get the result directory for a job.
+
+        Args:
+            base_dir: Base directory of the job queue
+
+        Returns:
+            Path to the job's result directory
+        """
         return Path(base_dir) / RESULT_DIR / self.id
 
     def get_error_file(self, base_dir: PathLike) -> Path:
-        """Get the error file for a job."""
+        """Get the error file path for a job.
+
+        Args:
+            base_dir: Base directory of the job queue
+
+        Returns:
+            Path to the job's error file within its result directory
+        """
         return self.get_result_dir(base_dir) / ERROR_FILE
 
     def save(self, base_dir: PathLike) -> None:
-        """Save job to a JSON file."""
+        """Save job metadata to a JSON file.
+
+        Args:
+            base_dir: Base directory of the job queue
+        """
         job_file = self.get_job_file(base_dir)
         job_file.write_text(json.dumps(self.to_dict(), indent=2))
 
     def load_result(self, base_dir: PathLike) -> dict[str, Any]:
+        """Load the job's results from its result file.
+
+        Args:
+            base_dir: Base directory of the job queue
+
+        Returns:
+            Dictionary containing the job's results, or empty dict if no results exist
+        """
         result_file = self.get_result_dir(base_dir) / RESULTS_FILE
         if not result_file.exists():
             return {}
