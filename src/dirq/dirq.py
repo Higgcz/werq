@@ -142,9 +142,7 @@ class Job:
 
 class JobQueue:
     def __init__(self, base_dir: PathLike) -> None:
-        """
-        Initialize job queue with base directory.
-        """
+        """Initialize job queue with base directory."""
         self.base_dir = Path(base_dir)
         self._ensure_directories()
 
@@ -154,8 +152,7 @@ class JobQueue:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
     def _generate_job_id(self) -> JobID:
-        """
-        Generate a unique job ID.
+        """Generate a unique job ID.
 
         The ID is based on the current time in nanoseconds
         """
@@ -218,8 +215,7 @@ class JobQueue:
         return job
 
     def complete(self, job: Job, result: Optional[Mapping[str, Any]] = None) -> None:
-        """
-        Mark job as completed.
+        """Mark job as completed.
 
         Args:
             job (Job): Job to complete
@@ -285,8 +281,7 @@ class JobQueue:
         filter_func: Optional[Callable[[Job], bool]] = None,
         reverse: bool = False,
     ) -> list[Job]:
-        """
-        List all jobs in the queue, optionally filtering them based on their parameters.
+        """List all jobs in the queue, optionally filtering them based on their parameters.
 
         Args:
             *states: Job states to include
@@ -333,8 +328,7 @@ class Worker(ABC):
 
     @abstractmethod
     def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
-        """
-        Process a single job. This method should be implemented by the user.
+        """Process a single job. This method should be implemented by the user.
 
         Args:
             job (Job): Job to process
@@ -346,8 +340,7 @@ class Worker(ABC):
         raise NotImplementedError("Worker.process_job must be implemented")
 
     def run(self, poll_interval: float = 1.0) -> None:
-        """
-        Main worker loop.
+        """Main worker loop.
 
         Args:
             poll_interval: Time to wait between checking for new jobs (seconds)
