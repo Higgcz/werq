@@ -1,3 +1,14 @@
+"""Tests for the dirq package.
+
+This module contains integration tests for the dirq job queue system.
+Tests cover the complete job lifecycle including:
+- Job submission and retrieval
+- State transitions
+- Worker processing
+- Error handling
+- Concurrent access
+"""
+
 import json
 import shutil
 import time

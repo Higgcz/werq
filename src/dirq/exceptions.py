@@ -1,4 +1,14 @@
-"""Custom exceptions for dirq."""
+"""Custom exceptions for dirq.
+
+This module defines the exception hierarchy used by the dirq package:
+
+- DirQError: Base exception class for all dirq errors
+- JobStateError: For invalid job state transitions
+- JobValidationError: For invalid job parameters or data
+
+All exceptions can optionally wrap an underlying exception to preserve
+the original error context.
+"""
 
 from typing import Optional
 
