@@ -160,6 +160,12 @@ class TestWorker(Worker):
     """
 
     def __init__(self, queue: JobQueue, should_fail: bool = False):
+        """Initialize the test worker.
+
+        Args:
+            queue: The job queue to process jobs from
+            should_fail: If True, process_job will raise a ValueError
+        """
         super().__init__(queue, stop_when_done=True)
         self.should_fail = should_fail
         self.processed_jobs = []
