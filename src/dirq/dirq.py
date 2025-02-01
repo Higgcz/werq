@@ -263,12 +263,24 @@ class JobQueue:
     """
 
     def __init__(self, base_dir: PathLike) -> None:
-        """Initialize job queue with base directory."""
+        """Initialize job queue with base directory.
+
+        Args:
+            base_dir: Path to the directory where job files and results will be stored
+        """
         self.base_dir = Path(base_dir)
         self._ensure_directories()
 
     def _ensure_directories(self) -> None:
-        """Create necessary directory structure."""
+        """Create necessary directory structure.
+
+        Creates the following directories if they don't exist:
+        - queued/: For new jobs
+        - running/: For jobs being processed
+        - completed/: For finished jobs
+        - failed/: For failed jobs
+        - completed/: For job results
+        """
         for dir_name in [RESULT_DIR] + [status.value for status in JobState]:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -289,7 +301,14 @@ class JobQueue:
         lock_path.unlink(missing_ok=True)
 
     def submit(self, params: dict[str, Any]) -> Job:
-        """Submit a new job to the queue."""
+        """Submit a new job to the queue.
+
+        Args:
+            params: Dictionary of parameters for the job
+
+        Returns:
+            Job: The newly created job
+        """
         job_id = self._generate_job_id()
 
         job = Job(id=job_id, params=params)
@@ -300,7 +319,17 @@ class JobQueue:
         return job
 
     def pop_next(self) -> Optional[Job]:
-        """Pop the next job from the queue."""
+        """Pop the next job from the queue.
+
+        Gets the oldest queued job and transitions it to the running state.
+        If there are no jobs in the queue, returns None.
+
+        Returns:
+            Job: The next job to process, or None if queue is empty
+
+        Raises:
+            JobStateError: If the job cannot be transitioned to running state
+        """
         queue_dir = self.base_dir / JobState.QUEUED.value
         jobs = sorted(queue_dir.glob("*.json"))
 
@@ -336,11 +365,15 @@ class JobQueue:
         return job
 
     def complete(self, job: Job, result: Optional[Mapping[str, Any]] = None) -> None:
-        """Mark job as completed.
+        """Mark job as completed and save its results.
 
         Args:
-            job (Job): Job to complete
-            result (Optional[dict[str, Any]], optional): Results of the job. Defaults to None.
+            job: Job to mark as completed
+            result: Optional dictionary of results to save. If provided, results
+                   will be saved to a JSON file in the job's result directory.
+
+        Raises:
+            JobStateError: If the job cannot be transitioned to completed state
         """
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
@@ -354,7 +387,16 @@ class JobQueue:
                 self.update_result(job, result)
 
     def fail(self, job: Job, error_msg: str, error_traceback: str) -> None:
-        """Mark job as failed."""
+        """Mark job as failed and save error information.
+
+        Args:
+            job: Job to mark as failed
+            error_msg: Short error message describing the failure
+            error_traceback: Full error traceback for debugging
+
+        Raises:
+            JobStateError: If the job cannot be transitioned to failed state
+        """
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
             job.fail(error_msg)
