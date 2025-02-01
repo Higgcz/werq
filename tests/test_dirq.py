@@ -237,10 +237,134 @@ def test_worker_failure(queue):
     assert "Test failure" in job_out.error
 
 
-# Additional test ideas:
-# - Test file locking (concurrent access)
-# - Test invalid job IDs
-# - Test malformed job files
-# - Test directory permissions
-# - Test cleanup of lock files
-# - Test worker interruption
+def test_job_duration(queue):
+    """Test job duration calculation in different states."""
+    job = queue.submit({"test": "duration"})
+    assert job.duration is None  # Queued job has no duration
+
+    job = queue.pop_next()
+    assert job.duration is not None  # Running job has duration
+    assert job.duration >= 0
+
+    queue.complete(job)
+    job = queue.get_job(job.id)
+    assert job.duration is not None  # Completed job has duration
+    assert job.duration >= 0
+
+    # Test failed job duration
+    job2 = queue.submit({"test": "duration2"})
+    job2 = queue.pop_next()
+    queue.fail(job2, "Test error", "Test traceback")
+    job2 = queue.get_job(job2.id)
+    assert job2.duration is not None
+    assert job2.duration >= 0
+
+
+def test_invalid_state_transitions(queue):
+    """Test invalid job state transitions."""
+    job = queue.submit({"test": "state"})
+
+    # Can't complete a queued job
+    with pytest.raises(JobStateError):
+        queue.complete(job)
+
+    # Can't fail a queued job
+    with pytest.raises(JobStateError):
+        queue.fail(job, "error", "traceback")
+
+    # Can't update progress of queued job
+    with pytest.raises(JobStateError):
+        queue.update_progress(job, 0.5)
+
+    # Start the job
+    job = queue.pop_next()
+
+    # Can't start a running job
+    with pytest.raises(JobStateError):
+        job.start()
+
+    # Complete the job
+    queue.complete(job)
+
+    # Can't update completed job
+    with pytest.raises(JobStateError):
+        queue.update_progress(job, 0.5)
+
+
+def test_list_jobs_filtering(queue):
+    """Test job listing with filters and ordering."""
+    # Create jobs in different states
+    job1 = queue.submit({"test": 1})
+    job2 = queue.submit({"test": 2})
+    job3 = queue.submit({"test": 3})
+
+    # Get one running and one completed
+    running_job = queue.pop_next()
+    queue.complete(running_job)
+    queue.pop_next()
+
+    # Test filtering by state
+    queued_jobs = queue.list_jobs(JobState.QUEUED)
+    assert len(queued_jobs) == 1
+    assert queued_jobs[0].id == job3.id
+
+    completed_jobs = queue.list_jobs(JobState.COMPLETED)
+    assert len(completed_jobs) == 1
+    assert completed_jobs[0].id == job1.id
+
+    # Test multiple states
+    multi_state = queue.list_jobs(JobState.RUNNING, JobState.COMPLETED)
+    assert len(multi_state) == 2
+
+    # Test reverse ordering
+    all_jobs_reverse = queue.list_jobs(reverse=True)
+    assert len(all_jobs_reverse) == 3
+    assert all_jobs_reverse[0].id == job3.id
+
+    # Test with filter function
+    filtered = queue.list_jobs(filter_func=lambda j: j.params["test"] > 1)
+    assert len(filtered) == 2
+    assert all(j.params["test"] > 1 for j in filtered)
+
+
+def test_delete_job(queue):
+    """Test job deletion functionality."""
+    job = queue.submit({"test": "delete"})
+    
+    # Create some result data
+    job = queue.pop_next()
+    queue.complete(job, {"result": "test"})
+    
+    # Verify job exists
+    assert queue.get_job(job.id) is not None
+    assert job.get_result_dir(queue.base_dir).exists()
+    
+    # Delete without result dir
+    assert queue.delete(job, delete_result_dir=False)
+    assert queue.get_job(job.id) is None
+    assert job.get_result_dir(queue.base_dir).exists()
+    
+    # Delete non-existent job
+    assert not queue.delete(job)
+    
+    # Create new job and delete with result dir
+    job = queue.submit({"test": "delete2"})
+    job = queue.pop_next()
+    queue.complete(job, {"result": "test"})
+    
+    assert queue.delete(job, delete_result_dir=True)
+    assert queue.get_job(job.id) is None
+    assert not job.get_result_dir(queue.base_dir).exists()
+
+
+def test_lock_file_cleanup(queue):
+    """Test that lock files are properly cleaned up."""
+    job = queue.submit({"test": "lock"})
+    job_file = job.get_job_file(queue.base_dir)
+    
+    # Lock file should be created and removed
+    with queue._with_lock(job_file):
+        lock_path = Path(*job_file.parts[:-2], job_file.name).with_suffix(".lock")
+        assert lock_path.exists()
+    
+    assert not lock_path.exists()
