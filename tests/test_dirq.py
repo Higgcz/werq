@@ -330,28 +330,28 @@ def test_list_jobs_filtering(queue):
 def test_delete_job(queue):
     """Test job deletion functionality."""
     job = queue.submit({"test": "delete"})
-    
+
     # Create some result data
     job = queue.pop_next()
     queue.complete(job, {"result": "test"})
-    
+
     # Verify job exists
     assert queue.get_job(job.id) is not None
     assert job.get_result_dir(queue.base_dir).exists()
-    
+
     # Delete without result dir
     assert queue.delete(job, delete_result_dir=False)
     assert queue.get_job(job.id) is None
     assert job.get_result_dir(queue.base_dir).exists()
-    
+
     # Delete non-existent job
     assert not queue.delete(job)
-    
+
     # Create new job and delete with result dir
     job = queue.submit({"test": "delete2"})
     job = queue.pop_next()
     queue.complete(job, {"result": "test"})
-    
+
     assert queue.delete(job, delete_result_dir=True)
     assert queue.get_job(job.id) is None
     assert not job.get_result_dir(queue.base_dir).exists()
@@ -361,11 +361,11 @@ def test_lock_file_cleanup(queue):
     """Test that lock files are properly cleaned up."""
     job = queue.submit({"test": "lock"})
     job_file = job.get_job_file(queue.base_dir)
-    
+
     # Lock file should be created and removed
     with queue._with_lock(job_file):
         # Lock files are created in base directory with just the filename
         lock_path = Path(queue.base_dir, job_file.name).with_suffix(".lock")
         assert lock_path.exists()
-    
+
     assert not lock_path.exists()
