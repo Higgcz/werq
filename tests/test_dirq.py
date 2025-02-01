@@ -28,7 +28,13 @@ def queue(temp_dir):
 
 
 def test_job_submission(queue):
-    """Test basic job submission."""
+    """Test basic job submission functionality.
+
+    Tests that:
+    - Job file is created in the correct location
+    - Job data is properly serialized
+    - Job attributes are correctly set
+    """
     params = {"test_param": "value"}
     job = queue.submit(params)
 
@@ -143,7 +149,15 @@ def test_concurrent_job_processing(queue):
 
 
 class TestWorker(Worker):
-    """Test worker implementation."""
+    """Test worker implementation for testing job processing.
+
+    This worker implementation tracks processed jobs and can be configured
+    to fail on demand for testing error handling.
+
+    Attributes:
+        should_fail: If True, the worker will raise an error when processing jobs
+        processed_jobs: List of job IDs that have been processed
+    """
 
     def __init__(self, queue: JobQueue, should_fail: bool = False):
         super().__init__(queue, stop_when_done=True)
@@ -151,6 +165,18 @@ class TestWorker(Worker):
         self.processed_jobs = []
 
     def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
+        """Process a single job.
+
+        Args:
+            job: The job to process
+            result_dir: Directory where job results should be stored
+
+        Returns:
+            Mapping[str, Any]: The job parameters as results
+
+        Raises:
+            ValueError: If should_fail is True
+        """
         self.processed_jobs.append(job.id)
         if self.should_fail:
             raise ValueError("Test failure")
