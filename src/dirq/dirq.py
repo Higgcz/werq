@@ -32,6 +32,15 @@ logger = logging.getLogger(__name__)
 
 
 class JobState(str, Enum):
+    """Enumeration of possible job states.
+
+    Attributes:
+        QUEUED: Job is waiting to be processed
+        RUNNING: Job is currently being processed
+        COMPLETED: Job has finished successfully
+        FAILED: Job has failed during processing
+    """
+
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -285,15 +294,29 @@ class JobQueue:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
     def _generate_job_id(self) -> JobID:
-        """Generate a unique job ID.
+        """Generate a unique job ID based on current timestamp.
 
-        The ID is based on the current time in nanoseconds
+        The ID is based on the current time in nanoseconds to ensure uniqueness
+        across multiple processes.
+
+        Returns:
+            JobID: A unique identifier for a new job
         """
         return JobID(str(int(time.time_ns())))
 
     @contextmanager
     def _with_lock(self, file_path: Path) -> Generator[BaseFileLock, None, None]:
-        """Get a file lock for a given file path."""
+        """Get a file lock for a given file path.
+
+        Creates a lock file to ensure thread/process-safe operations on job files.
+        The lock is automatically released when exiting the context.
+
+        Args:
+            file_path: Path to the file that needs to be locked
+
+        Yields:
+            BaseFileLock: A file lock object that can be used in a with statement
+        """
         lock_path = file_path.with_suffix(".lock")
         # Remove the state directory from the lock path
         lock_path = Path(*lock_path.parts[:-2], lock_path.name)
@@ -409,25 +432,54 @@ class JobQueue:
         error_file.write_text(f"{error_msg}\n\n{error_traceback}")
 
     def get_result_dir(self, job: Job) -> Path:
-        """Get the result directory for a job."""
+        """Get the result directory for a job.
+
+        Args:
+            job: The job to get the result directory for
+
+        Returns:
+            Path: Path to the directory where job results are stored
+        """
         return job.get_result_dir(self.base_dir)
 
     def update_progress(self, job: Job, progress: float) -> None:
-        """Update job progress."""
+        """Update job progress.
+
+        Args:
+            job: The job to update
+            progress: Progress value between 0.0 and 1.0
+
+        Raises:
+            JobStateError: If the job is not in the running state
+        """
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
             job.update_progress(progress)
             job.save(self.base_dir)
 
     def update_result(self, job: Job, result: Mapping[str, Any]) -> None:
-        """Update job results."""
+        """Update job results by saving them to a JSON file.
+
+        Args:
+            job: The job to update results for
+            result: Dictionary of results to save
+        """
         result_dir = job.get_result_dir(self.base_dir)
         result_dir.mkdir(parents=True, exist_ok=True)
         with open(result_dir / RESULTS_FILE, "w") as f:
             json.dump(result, f)
 
     def get_job(self, job_id: JobID) -> Optional[Job]:
-        """Get a job by ID."""
+        """Get a job by its ID.
+
+        Searches through all state directories to find the job.
+
+        Args:
+            job_id: ID of the job to find
+
+        Returns:
+            Job if found, None otherwise
+        """
         for state in JobState:
             job_file = self.base_dir / state.value / f"{job_id}.json"
             if job_file.exists():
@@ -468,7 +520,15 @@ class JobQueue:
         return sorted(jobs, key=lambda job: job.created_at, reverse=reverse)
 
     def delete(self, job: Job, delete_result_dir: bool = True) -> bool:
-        """Delete a job and its result directory."""
+        """Delete a job and optionally its result directory.
+
+        Args:
+            job: The job to delete
+            delete_result_dir: If True, also delete the job's result directory
+
+        Returns:
+            bool: True if the job was deleted, False if it didn't exist
+        """
         deleted = False
         job_file = job.get_job_file(self.base_dir)
         with self._with_lock(job_file):
@@ -494,7 +554,12 @@ class Worker(ABC):
     """
 
     def __init__(self, queue: JobQueue, stop_when_done: bool = False) -> None:
-        """Initialize worker with a job queue."""
+        """Initialize worker with a job queue.
+
+        Args:
+            queue: The job queue to process jobs from
+            stop_when_done: If True, worker will stop when queue is empty
+        """
         self.queue = queue
         self.stop_when_done = stop_when_done
 
@@ -512,10 +577,16 @@ class Worker(ABC):
         raise NotImplementedError("Worker.process_job must be implemented")
 
     def run(self, poll_interval: float = 1.0) -> None:
-        """Main worker loop.
+        """Main worker loop that processes jobs from the queue.
+
+        Continuously polls the queue for new jobs and processes them.
+        If stop_when_done is True, exits after queue has been empty for a while.
 
         Args:
             poll_interval: Time to wait between checking for new jobs (seconds)
+
+        Note:
+            This method runs indefinitely unless stop_when_done is True
         """
         no_jobs_count = 0
         while True:
