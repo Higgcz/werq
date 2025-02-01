@@ -63,6 +63,7 @@ class Job:
         error: Error message if the job failed (None if not failed)
         progress: Float between 0 and 1 indicating job progress
     """
+
     id: JobID
     params: dict[str, Any]
     state: JobState = JobState.QUEUED
@@ -195,6 +196,7 @@ class JobQueue:
             failed/     - Failed jobs
             completed/  - Directory containing job results
     """
+
     def __init__(self, base_dir: PathLike) -> None:
         """Initialize job queue with base directory."""
         self.base_dir = Path(base_dir)
@@ -383,6 +385,7 @@ class Worker(ABC):
     The worker can run continuously or stop when the queue is empty based on
     the stop_when_done parameter.
     """
+
     def __init__(self, queue: JobQueue, stop_when_done: bool = False) -> None:
         """Initialize worker with a job queue."""
         self.queue = queue
