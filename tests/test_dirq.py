@@ -364,7 +364,8 @@ def test_lock_file_cleanup(queue):
     
     # Lock file should be created and removed
     with queue._with_lock(job_file):
-        lock_path = Path(*job_file.parts[:-2], job_file.name).with_suffix(".lock")
+        # Lock files are created in base directory with just the filename
+        lock_path = Path(queue.base_dir, job_file.name).with_suffix(".lock")
         assert lock_path.exists()
     
     assert not lock_path.exists()
