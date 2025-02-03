@@ -1,3 +1,23 @@
+[project]
+name = "dirq"
+version = "0.4.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Vojtech Micka", email = "vojtech@nnaisense.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "filelock>=3.16.1",
+    "pandas>=2.2.3",
+    "rich>=13.9.4",
+]
+
+[project.scripts]
+dirq = "dirq:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra --cov=dirq"
@@ -30,5 +50,11 @@ version_file = "src/dirq/__version.py"
 version_file_template = '__version__ = "{version}"'
 fallback_version = "0.0"
 
-[build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4"]
+[dependency-groups]
+dev = [
+    "mypy>=1.14.1",
+    "pre-commit>=4.1.0",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.4",
+]
