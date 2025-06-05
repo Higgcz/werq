@@ -34,6 +34,7 @@ test_pre_commit:
       paths:
         - ".cache/pre-commit"
   script:
+    - apt-get update && apt-get install -y git
     - git config user.email "ci@nnaisense.com"
     - uv tool install pre-commit
     - uv tool run pre-commit install
