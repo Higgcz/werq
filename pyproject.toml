@@ -1,6 +1,6 @@
 [project]
 name = "dirq"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Simple directory-based job queue for Python"
 readme = "README.md"
 authors = [{ name = "Vojtech Micka", email = "vojtech@nnaisense.com" }]
@@ -9,10 +9,6 @@ dependencies = ["filelock>=3.16.1", "pandas>=2.2.3", "rich>=13.9.4"]
 
 [project.scripts]
 dirq = "dirq.cli:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -41,10 +37,18 @@ convention = "google"
 [tool.ruff.lint.isort]
 known-local-folder = ["dirq"]
 
-[tool.setuptools_scm]
-version_file = "src/dirq/__version.py"
-version_file_template = '__version__ = "{version}"'
-fallback_version = "0.0"
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.hooks.version]
+path = "src/dirq/__version.py"
+template = '''
+__version__ = "{version}"
+'''
 
 [dependency-groups]
 dev = [

@@ -8,7 +8,6 @@ and ease of use are priorities.
 from .dirq import Job, JobID, JobQueue, JobState, Worker
 from .exceptions import DirQError, JobStateError, JobValidationError
 
-__version__ = "0.1.0"
 __all__ = (
     "DirQError",
     "Job",
@@ -28,10 +27,4 @@ __email__ = "vojtech@nnaisense.com"
 try:
     from .__version import __version__ as __version__
 except ImportError:
-    import sys
-
-    print(
-        "Please install the package to ensure correct behavior.\nFrom root folder:\n\tpip install -e .",
-        file=sys.stderr,
-    )
-    __version__ = "undefined"
+    __version__ = "0.0.0"
