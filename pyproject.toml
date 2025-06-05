@@ -41,6 +41,13 @@ known-local-folder = ["dirq"]
 requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "semver"
+bump = true
+fallback-version = "0.0.0"
+pattern = "default-unprefixed"
+
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
