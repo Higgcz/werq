@@ -80,6 +80,7 @@ class Job:
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     error: Optional[str] = None
+    worker_name: Optional[str] = None
     progress: float = 0.0
 
     # Serialization
@@ -97,6 +98,7 @@ class Job:
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "finished_at": self.finished_at.isoformat() if self.finished_at else None,
             "error": self.error,
+            "worker_name": self.worker_name,
             "progress": self.progress,
         }
 
@@ -118,6 +120,7 @@ class Job:
             started_at=datetime.fromisoformat(data["started_at"]) if data["started_at"] else None,
             finished_at=datetime.fromisoformat(data["finished_at"]) if data["finished_at"] else None,
             error=data.get("error"),
+            worker_name=data.get("worker_name"),
             progress=data.get("progress", 0.0),
         )
 
@@ -149,8 +152,11 @@ class Job:
                 return None
 
     # State transitions
-    def start(self) -> None:
+    def start(self, worker_name: Optional[str] = None) -> None:
         """Start the job by transitioning it to the running state.
+
+        Args:
+            worker_name: Optional name of the worker processing this job
 
         Raises:
             JobStateError: If the job is not in the queued state
@@ -159,6 +165,7 @@ class Job:
             raise JobStateError(f"Cannot start job {self.id} in state {self.state}")
         self.state = JobState.RUNNING
         self.started_at = datetime.now()
+        self.worker_name = worker_name
 
     def complete(self) -> None:
         """Mark the job as completed.
@@ -346,11 +353,14 @@ class JobQueue:
 
         return job
 
-    def pop_next(self) -> Optional[Job]:
+    def pop_next(self, worker_name: Optional[str] = None) -> Optional[Job]:
         """Pop the next job from the queue.
 
         Gets the oldest queued job and transitions it to the running state.
         If there are no jobs in the queue, returns None.
+
+        Args:
+            worker_name: Optional name of the worker processing this job
 
         Returns:
             Job: The next job to process, or None if queue is empty
@@ -377,7 +387,7 @@ class JobQueue:
             try:
                 job_file = job.get_job_file(self.base_dir)
                 # Start the job - change state to running
-                job.start()
+                job.start(worker_name)
                 # Remove the job from the queue
                 job_file.unlink()
 
@@ -558,15 +568,40 @@ class Worker(ABC):
     the stop_when_done parameter.
     """
 
-    def __init__(self, queue: JobQueue, stop_when_done: bool = False) -> None:
+    def __init__(self, queue: JobQueue, stop_when_done: bool = False, name: Optional[str] = None) -> None:
         """Initialize worker with a job queue.
 
         Args:
             queue: The job queue to process jobs from
             stop_when_done: If True, worker will stop when queue is empty
+            name: Optional name for this worker. If None, will use env var or generate one
         """
         self.queue = queue
         self.stop_when_done = stop_when_done
+        self._provided_name = name
+
+    @property
+    def name(self) -> str:
+        """Get the name of this worker.
+
+        Returns the name in the following order of precedence:
+        1. Name provided in constructor
+        2. Environment variable DIRQ_WORKER_NAME
+        3. Generated name using class name and process ID
+        """
+        import multiprocessing
+        import os
+
+        if self._provided_name:
+            return self._provided_name
+
+        # Check environment variable
+        env_name = os.environ.get("DIRQ_WORKER_NAME")
+        if env_name:
+            return env_name
+
+        # Generate a name based on class name and process ID
+        return f"{self.__class__.__name__}-pid{multiprocessing.current_process().pid}"
 
     @abstractmethod
     def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
@@ -596,7 +631,7 @@ class Worker(ABC):
         no_jobs_count = 0
         while True:
             try:
-                job = self.queue.pop_next()
+                job = self.queue.pop_next(worker_name=self.name)
                 if job:
                     result_dir = self.queue.get_result_dir(job)
                     result_dir.mkdir(parents=True, exist_ok=True)
