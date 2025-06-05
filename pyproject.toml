@@ -1,18 +1,14 @@
 [project]
 name = "dirq"
 version = "0.4.0"
-description = "Add your description here"
+description = "Simple directory-based job queue for Python"
 readme = "README.md"
 authors = [{ name = "Vojtech Micka", email = "vojtech@nnaisense.com" }]
 requires-python = ">=3.11"
-dependencies = [
-    "filelock>=3.16.1",
-    "pandas>=2.2.3",
-    "rich>=13.9.4",
-]
+dependencies = ["filelock>=3.16.1", "pandas>=2.2.3", "rich>=13.9.4"]
 
 [project.scripts]
-dirq = "dirq:main"
+dirq = "dirq.cli:main"
 
 [build-system]
 requires = ["hatchling"]
