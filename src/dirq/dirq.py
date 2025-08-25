@@ -554,7 +554,7 @@ class JobQueue:
             # Delete result directory if exists
             result_dir = job.get_result_dir(self.base_dir)
             if delete_result_dir and result_dir.exists():
-                shutil.rmtree(result_dir)
+                shutil.rmtree(result_dir, ignore_errors=True)
         return deleted
 
 
