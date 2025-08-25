@@ -147,3 +147,4 @@ jobs
 job.json
 .ruff_cache
 .aider*
+.uv_cache
