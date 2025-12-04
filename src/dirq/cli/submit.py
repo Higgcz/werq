@@ -3,14 +3,14 @@
 import json
 import shlex
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-from dirq import DirQError, JobQueue, JobState
+from dirq import DirQError, Job, JobQueue, JobState
 from dirq.dirq import JobID
 
 
@@ -55,6 +55,27 @@ def submit_command(
 DEFAULT_COLUMNS = ("id", "name", "state", "created_at", "started_at", "finished_at", "worker_name", "progress", "error")
 
 
+def _format_job_row(job: Job, columns: tuple[str, ...]) -> dict[str, str]:
+    """Format a job object into a row dict with string values."""
+
+    def fmt_datetime(dt: datetime | None) -> str:
+        return dt.strftime("%Y-%m-%d %H:%M:%S") if dt else ""
+
+    row = {
+        "id": job.id,
+        "name": job.params.get("name", ""),
+        "state": job.state.value.upper(),
+        "created_at": fmt_datetime(job.created_at),
+        "started_at": fmt_datetime(job.started_at),
+        "finished_at": fmt_datetime(job.finished_at),
+        "worker_name": job.worker_name or "",
+        "progress": str(job.progress),
+        "error": (job.error or "").split("\n", 1)[0],
+    }
+
+    return {col: row.get(col, "") for col in columns}
+
+
 def list_command(
     jobs_dir: Path, limit: Optional[int] = None, columns: tuple[str, ...] = DEFAULT_COLUMNS, **kwargs
 ) -> None:
@@ -63,35 +84,16 @@ def list_command(
         queue = JobQueue(jobs_dir)
         jobs = queue.list_jobs()
 
-        # Convert jobs to a DataFrame
-        df = pd.DataFrame(jobs)
-
-        if len(df) == 0:
+        if not jobs:
             print("No jobs found.")
             return
 
-        # Extract name from params before dropping
-        df["name"] = df["params"].apply(lambda p: p.get("name", "") if isinstance(p, dict) else "")
+        # Sort by creation time (newest first)
+        jobs = sorted(jobs, key=lambda j: j.created_at, reverse=True)
 
-        # Format timestamps
-        for col in ["created_at", "started_at", "finished_at", "failed_at"]:
-            if (col in df.columns) and (df[col].dtype == "datetime64[ns]"):
-                df[col] = df[col].dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        # Sort by creation time
-        df = df.sort_values("created_at", ascending=False)
-
+        # Apply limit
         if limit:
-            df = df.head(limit)
-
-        df.state = df.state.str.upper()
-        df.drop("params", axis=1, inplace=True)
-
-        # Select and order columns
-        df = df[[col for col in columns if col in df.columns]]
-
-        # Show only first line of long error messages
-        df.error = df.error.str.split("\n").str[0]
+            jobs = jobs[:limit]
 
         # Define status colors
         state_colors = {
@@ -105,14 +107,14 @@ def list_command(
         table = Table(title="Jobs", title_style="bold magenta")
 
         # Add columns with styles
-        for column in df.columns:
+        for column in columns:
             table.add_column(column, style="cyan", no_wrap=True, max_width=30)
 
         # Add rows with status-based styles
-        for _, row in df.iterrows():
-            state = str(row["state"])
-            style = state_colors.get(state, "white")
-            table.add_row(*[str(value) for value in row], style=style)
+        for job in jobs:
+            row = _format_job_row(job, columns)
+            style = state_colors.get(row["state"], "white")
+            table.add_row(*[row[col] for col in columns], style=style)
 
         # Print the table
         console = Console()

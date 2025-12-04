@@ -4,12 +4,11 @@ A simple, directory-based job queue system.
 
 ## Features
 
-- File system based - no external dependencies
+- File system based with minimal dependencies
 - Simple to use and understand
 - Perfect for small to medium workloads
 - Built-in progress tracking
 - Automatic cleanup
-- DataFrame-based job listing
 
 ## Installation
 
