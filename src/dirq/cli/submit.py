@@ -14,7 +14,9 @@ from dirq import DirQError, JobQueue, JobState
 from dirq.dirq import JobID
 
 
-def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = False, **kwargs) -> None:
+def submit_command(
+    jobs_dir: Path, file_or_command: list[str], monitor: bool = False, name: Optional[str] = None, **kwargs
+) -> None:
     """Handle the submit command."""
     try:
         print(file_or_command)
@@ -28,6 +30,10 @@ def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = F
                     "command": (shlex.join(file_or_command) if len(file_or_command) > 1 else file_or_command[0]),
                     "type": "shell",
                 }
+
+        # Add name if provided
+        if name:
+            params["name"] = name
 
         # Initialize queue and submit job
         queue = JobQueue(jobs_dir)
@@ -46,7 +52,12 @@ def submit_command(jobs_dir: Path, file_or_command: list[str], monitor: bool = F
         print(f"Unexpected error: {e}")
 
 
-def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
+DEFAULT_COLUMNS = ("id", "name", "state", "created_at", "started_at", "finished_at", "worker_name", "progress", "error")
+
+
+def list_command(
+    jobs_dir: Path, limit: Optional[int] = None, columns: tuple[str, ...] = DEFAULT_COLUMNS, **kwargs
+) -> None:
     """Handle the list command."""
     try:
         queue = JobQueue(jobs_dir)
@@ -58,6 +69,9 @@ def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
         if len(df) == 0:
             print("No jobs found.")
             return
+
+        # Extract name from params before dropping
+        df["name"] = df["params"].apply(lambda p: p.get("name", "") if isinstance(p, dict) else "")
 
         # Format timestamps
         for col in ["created_at", "started_at", "finished_at", "failed_at"]:
@@ -72,6 +86,9 @@ def list_command(jobs_dir: Path, limit: Optional[int] = None, **kwargs) -> None:
 
         df.state = df.state.str.upper()
         df.drop("params", axis=1, inplace=True)
+
+        # Select and order columns
+        df = df[[col for col in columns if col in df.columns]]
 
         # Show only first line of long error messages
         df.error = df.error.str.split("\n").str[0]
@@ -161,6 +178,18 @@ def rm_command(jobs_dir: Path, job_id: str, **kwargs) -> None:
         print(f"Job {job_id} deleted successfully")
     except Exception as e:
         print(f"Error deleting job: {e}")
+
+
+def resubmit_command(jobs_dir: Path, job_id: str, name: Optional[str] = None, **kwargs) -> None:
+    """Resubmit an existing job."""
+    try:
+        queue = JobQueue(jobs_dir)
+        new_job = queue.resubmit(JobID(job_id), name=name)
+        print(f"Resubmitted job {job_id} as new job: {new_job.id}")
+    except ValueError as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"Error resubmitting job: {e}")
 
 
 def info_command(jobs_dir: Path, job_id: str, **kwargs) -> None:

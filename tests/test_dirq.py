@@ -389,3 +389,82 @@ def test_lock_file_cleanup(queue: JobQueue, tmp_path: Path):
         assert lock_path.is_file()
 
     assert not lock_path.exists()
+
+
+def test_resubmit_job(queue: JobQueue):
+    """Test resubmitting an existing job."""
+    # Submit and complete original job
+    original = queue.submit({"test": "resubmit", "name": "original"})
+    original = queue.pop_next()
+    assert original is not None
+    queue.complete(original)
+
+    # Resubmit without new name
+    new_job = queue.resubmit(original.id)
+    assert new_job.id != original.id
+    assert new_job.params["test"] == "resubmit"
+    assert new_job.params["name"] == "original"
+    assert new_job.state == JobState.QUEUED
+
+    # Resubmit with new name
+    new_job2 = queue.resubmit(original.id, name="renamed")
+    assert new_job2.params["name"] == "renamed"
+
+
+def test_resubmit_nonexistent_job(queue: JobQueue):
+    """Test resubmitting a job that doesn't exist."""
+    from dirq.dirq import JobID
+
+    with pytest.raises(ValueError):
+        queue.resubmit(JobID("nonexistent"))
+
+
+def test_results_dir_env_var(tmp_path, monkeypatch):
+    """Test DIRQ_RESULTS_DIR environment variable."""
+    monkeypatch.setenv("DIRQ_RESULTS_DIR", "custom_results")
+    queue = JobQueue(tmp_path / "jobs")
+
+    job = queue.submit({"test": "env"})
+    result_dir = job.get_result_dir(queue.base_dir)
+    assert "custom_results" in str(result_dir)
+
+
+def test_worker_name_tracking(queue: JobQueue):
+    """Test that worker name is recorded on jobs."""
+    job = queue.submit({"test": "worker_name"})
+    job = queue.pop_next(worker_name="test-worker")
+    assert job is not None
+
+    assert job.worker_name == "test-worker"
+
+    # Verify persisted
+    job = queue.get_job(job.id)
+    assert job is not None
+    assert job.worker_name == "test-worker"
+
+
+def test_load_result(queue: JobQueue):
+    """Test loading job results."""
+    job = queue.submit({"test": "results"})
+    job = queue.pop_next()
+    assert job is not None
+    queue.complete(job, {"output": "test data"})
+
+    job = queue.get_job(job.id)
+    assert job is not None
+    result = job.load_result(queue.base_dir)
+    assert result["output"] == "test data"
+
+
+def test_error_file_written(queue: JobQueue):
+    """Test that error file is written on failure."""
+    job = queue.submit({"test": "error"})
+    job = queue.pop_next()
+    assert job is not None
+    queue.fail(job, "Error message", "Full traceback")
+
+    error_file = job.get_error_file(queue.base_dir)
+    assert error_file.exists()
+    content = error_file.read_text()
+    assert "Error message" in content
+    assert "Full traceback" in content

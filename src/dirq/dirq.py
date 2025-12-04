@@ -12,6 +12,7 @@ Key classes:
 
 import json
 import logging
+import os
 import shutil
 import time
 import traceback
@@ -47,9 +48,19 @@ class JobState(str, Enum):
     FAILED = "failed"
 
 
-RESULT_DIR = Path("completed")
+RESULT_DIR_DEFAULT = "completed_results"
 RESULTS_FILE = "results.json"
 ERROR_FILE = "error.txt"
+
+
+def get_result_dir_name() -> str:
+    """Get the result directory name from environment or use default.
+
+    Returns:
+        str: The result directory name (from DIRQ_RESULTS_DIR env var or default)
+    """
+    return os.environ.get("DIRQ_RESULTS_DIR", RESULT_DIR_DEFAULT)
+
 
 JobID = NewType("JobID", str)
 PathLike = str | Path
@@ -230,7 +241,7 @@ class Job:
         Returns:
             Path to the job's result directory
         """
-        return Path(base_dir) / RESULT_DIR / self.id
+        return Path(base_dir) / get_result_dir_name() / self.id
 
     def get_error_file(self, base_dir: PathLike) -> Path:
         """Get the error file path for a job.
@@ -276,11 +287,13 @@ class JobQueue:
 
     The directory structure is:
         base_dir/
-            queued/     - New jobs waiting to be processed
-            running/    - Jobs currently being processed
-            completed/  - Successfully completed jobs
-            failed/     - Failed jobs
-            completed/  - Directory containing job results
+            queued/            - New jobs waiting to be processed
+            running/           - Jobs currently being processed
+            completed/         - Successfully completed jobs (metadata only)
+            failed/            - Failed jobs (metadata only)
+            completed_results/ - Directory containing job results and errors
+
+    The results directory can be customized via the DIRQ_RESULTS_DIR environment variable.
     """
 
     def __init__(self, base_dir: PathLike) -> None:
@@ -300,9 +313,9 @@ class JobQueue:
         - running/: For jobs being processed
         - completed/: For finished jobs
         - failed/: For failed jobs
-        - completed/: For job results
+        - completed_results/: For job results (configurable via DIRQ_RESULTS_DIR)
         """
-        for dir_name in [RESULT_DIR] + [status.value for status in JobState]:
+        for dir_name in [get_result_dir_name()] + [status.value for status in JobState]:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
 
     def _generate_job_id(self) -> JobID:
@@ -352,6 +365,33 @@ class JobQueue:
             job.save(self.base_dir)
 
         return job
+
+    def resubmit(self, job_id: JobID, name: Optional[str] = None) -> Job:
+        """Resubmit an existing job with the same parameters.
+
+        Creates a new job with the same parameters as an existing job,
+        optionally with a new name.
+
+        Args:
+            job_id: ID of the job to resubmit
+            name: Optional new name for the resubmitted job
+
+        Returns:
+            Job: The newly created job
+
+        Raises:
+            ValueError: If the job is not found
+        """
+        original_job = self.get_job(job_id)
+        if original_job is None:
+            raise ValueError(f"Job {job_id} not found")
+
+        # Copy parameters and optionally update name
+        params = original_job.params.copy()
+        if name is not None:
+            params["name"] = name
+
+        return self.submit(params)
 
     def pop_next(self, worker_name: Optional[str] = None) -> Optional[Job]:
         """Pop the next job from the queue.

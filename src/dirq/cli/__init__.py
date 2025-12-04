@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 from rich.logging import RichHandler
 
-from .submit import info_command, list_command, monitor_command, rm_command, submit_command
+from .submit import info_command, list_command, monitor_command, resubmit_command, rm_command, submit_command
 from .worker import worker_command
 
 
@@ -58,6 +58,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     submit_parser.add_argument("file_or_command", help="Parameters file or shell command", nargs="+")
+    submit_parser.add_argument("--name", "-n", help="Optional name for the job")
     submit_parser.add_argument("--monitor", action="store_true", help="Monitor job after submission")
     submit_parser.set_defaults(func=submit_command)
 
@@ -92,6 +93,12 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     rm_parser = subparsers.add_parser("rm", help="Remove a job")
     rm_parser.add_argument("job_id", help="Job ID to remove")
     rm_parser.set_defaults(func=rm_command)
+
+    # Resubmit command
+    resubmit_parser = subparsers.add_parser("resubmit", help="Resubmit an existing job")
+    resubmit_parser.add_argument("job_id", help="Job ID to resubmit")
+    resubmit_parser.add_argument("--name", "-n", help="Optional new name for the resubmitted job")
+    resubmit_parser.set_defaults(func=resubmit_command)
 
     # Parse and execute
     parsed_args = parser.parse_args(args)
