@@ -1,12 +1,6 @@
 exclude: '^docs/conf.py'
 
 repos:
-  - repo: https://github.com/homebysix/pre-commit-macadmin
-    rev: v1.19.0
-    hooks:
-      - id: check-git-config-email
-        args: ['--domains', 'nnaisense.com']
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:

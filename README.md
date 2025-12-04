@@ -68,32 +68,36 @@ To set up the development environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/dirq.git
+git clone https://github.com/higgcz/dirq.git
 cd dirq
 
-... # TODO: Add more instructions
+# Install dependencies and set up development environment
+uv sync --dev
+
+# Install pre-commit hooks
+uv run pre-commit install
 ```
 
 ## Development Commands
 
 ```bash
 # Run tests
-pytest
+uv run pytest
 
 # Run type checking
-mypy dirq
+uv run mypy src/dirq
 
 # Run linter
-ruff check .
+uv run ruff check .
 
 # Format code
-ruff format .
+uv run ruff format .
 
 # Build package
-uv pip build
+uv build
 
-# Install in development mode
-uv pip install -e .
+# Sync dependencies (install/update)
+uv sync --dev
 ```
 
 ## License

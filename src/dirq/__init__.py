@@ -22,7 +22,7 @@ __all__ = (
     "__version__",
 )
 __author__ = "Vojtech Micka"
-__email__ = "vojtech@nnaisense.com"
+__email__ = "micka.vojtech@gmail.com"
 
 try:
     from .__version import __version__ as __version__

@@ -3,8 +3,23 @@ name = "dirq"
 dynamic = ["version"]
 description = "Simple directory-based job queue for Python"
 readme = "README.md"
-authors = [{ name = "Vojtech Micka", email = "vojtech@nnaisense.com" }]
+license = "MIT"
+authors = [{ name = "Vojtech Micka", email = "micka.vojtech@gmail.com" }]
 requires-python = ">=3.11"
+keywords = ["queue", "job-queue", "task-queue", "directory-queue"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = ["filelock>=3.16.1", "pandas>=2.2.3", "rich>=13.9.4"]
 
 [project.scripts]
