@@ -19,8 +19,6 @@ def submit_command(
 ) -> None:
     """Handle the submit command."""
     try:
-        print(file_or_command)
-
         # Check if file or command
         match file_or_command:
             case [file] if file.endswith(".json") and Path(file).is_file():
