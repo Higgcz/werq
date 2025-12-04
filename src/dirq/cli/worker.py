@@ -1,7 +1,6 @@
 """Worker command implementation."""
 
 import subprocess
-import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -10,35 +9,6 @@ from rich.console import Console
 from rich.table import Table
 
 from dirq import Job, JobQueue, Worker
-
-
-class DefaultWorker(Worker):
-    """Default worker implementation for CLI usage."""
-
-    def process_job(self, job: Job, *, result_dir: Path) -> Mapping[str, Any]:
-        """Process a job with progress reporting."""
-        print(f"\nProcessing job {job.id}")
-        print(f"Parameters: {job.params}")
-
-        # Get job parameters or use defaults
-        steps = job.params.get("steps", 10)
-        sleep_time = job.params.get("sleep", 1.0)
-
-        # Simulate work with progress updates
-        for i in range(steps):
-            time.sleep(sleep_time)
-            progress = (i + 1) * 100 / steps
-            self.queue.update_progress(job, progress)
-            print(f"\rProgress: {progress:.1f}%", end="")
-
-        print("\nJob completed!")
-
-        # Save results
-        with open(result_dir / "result.txt", "w") as f:
-            f.write(f"Processed job with {steps} steps\n")
-            f.write(f"Parameters: {job.params}\n")
-
-        return {"steps": steps, "sleep": sleep_time}
 
 
 class ShellWorker(Worker):
@@ -66,7 +36,7 @@ class ShellWorker(Worker):
 
 def worker_command(
     jobs_dir: Path,
-    name: str = "default",
+    name: str = "shell",
     list_workers: bool = False,
     poll_interval: float = 1.0,
     rm: bool = False,
@@ -75,7 +45,6 @@ def worker_command(
     """Handle the worker command."""
     available_workers = {
         "shell": ShellWorker,
-        "default": DefaultWorker,
     }
 
     console = Console()

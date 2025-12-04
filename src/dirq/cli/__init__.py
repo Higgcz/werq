@@ -77,7 +77,7 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     worker_parser.add_argument(
         "-l", "--list", action="store_true", help="List available workers and exit", dest="list_workers"
     )
-    worker_parser.add_argument("-n", "--name", help="Worker name to start")
+    worker_parser.add_argument("-n", "--name", default="shell", help="Worker name to start (default: shell)")
     worker_parser.add_argument(
         "--poll-interval", type=float, default=1.0, help="Poll interval in seconds (default: 1.0)"
     )
