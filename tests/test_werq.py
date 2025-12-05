@@ -1,6 +1,6 @@
-"""Tests for the dirq package.
+"""Tests for the werq package.
 
-This module contains integration tests for the dirq job queue system.
+This module contains integration tests for the werq job queue system.
 Tests cover the complete job lifecycle including:
 - Job submission and retrieval
 - State transitions
@@ -18,8 +18,8 @@ from typing import Any
 
 import pytest
 
-from dirq.dirq import Job, JobQueue, JobState, Worker
-from dirq.exceptions import JobStateError
+from werq.exceptions import JobStateError
+from werq.queue import Job, JobQueue, JobState, Worker
 
 
 @pytest.fixture
@@ -413,15 +413,15 @@ def test_resubmit_job(queue: JobQueue):
 
 def test_resubmit_nonexistent_job(queue: JobQueue):
     """Test resubmitting a job that doesn't exist."""
-    from dirq.dirq import JobID
+    from werq.queue import JobID
 
     with pytest.raises(ValueError):
         queue.resubmit(JobID("nonexistent"))
 
 
 def test_results_dir_env_var(tmp_path, monkeypatch):
-    """Test DIRQ_RESULTS_DIR environment variable."""
-    monkeypatch.setenv("DIRQ_RESULTS_DIR", "custom_results")
+    """Test WERQ_RESULTS_DIR environment variable."""
+    monkeypatch.setenv("WERQ_RESULTS_DIR", "custom_results")
     queue = JobQueue(tmp_path / "jobs")
 
     job = queue.submit({"test": "env"})

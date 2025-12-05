@@ -1,5 +1,5 @@
 [project]
-name = "dirq"
+name = "werq"
 dynamic = ["version"]
 description = "Simple directory-based job queue for Python"
 readme = "README.md"
@@ -23,11 +23,11 @@ classifiers = [
 dependencies = ["filelock>=3.16.1", "rich>=13.9.4"]
 
 [project.scripts]
-dirq = "dirq.cli:main"
+werq = "werq.cli:main"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra --cov=dirq"
+addopts = "-ra --cov=werq"
 testpaths = ["tests"]
 
 [tool.mypy]
@@ -50,7 +50,7 @@ ignore = []
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-local-folder = ["dirq"]
+known-local-folder = ["werq"]
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
@@ -67,7 +67,7 @@ pattern = "default-unprefixed"
 source = "uv-dynamic-versioning"
 
 [tool.hatch.build.hooks.version]
-path = "src/dirq/__version.py"
+path = "src/werq/__version.py"
 template = '''
 __version__ = "{version}"
 '''

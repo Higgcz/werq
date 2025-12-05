@@ -8,7 +8,7 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
-from dirq import Job, JobQueue, Worker
+from werq import Job, JobQueue, Worker
 
 
 class ShellWorker(Worker):
@@ -58,7 +58,7 @@ def worker_command(
         console.print(table)
         console.print("Use `-n/--name` to start a specific worker.")
         console.print("You can pass a module path to start a custom worker.")
-        console.print("Example: `dirq worker -n mymodule.MyWorker`")
+        console.print("Example: `werq worker -n mymodule.MyWorker`")
         return
     try:
         # Try to load the worker class

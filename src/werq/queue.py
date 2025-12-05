@@ -57,9 +57,9 @@ def get_result_dir_name() -> str:
     """Get the result directory name from environment or use default.
 
     Returns:
-        str: The result directory name (from DIRQ_RESULTS_DIR env var or default)
+        str: The result directory name (from WERQ_RESULTS_DIR env var or default)
     """
-    return os.environ.get("DIRQ_RESULTS_DIR", RESULT_DIR_DEFAULT)
+    return os.environ.get("WERQ_RESULTS_DIR", RESULT_DIR_DEFAULT)
 
 
 JobID = NewType("JobID", str)
@@ -293,7 +293,7 @@ class JobQueue:
             failed/            - Failed jobs (metadata only)
             completed_results/ - Directory containing job results and errors
 
-    The results directory can be customized via the DIRQ_RESULTS_DIR environment variable.
+    The results directory can be customized via the WERQ_RESULTS_DIR environment variable.
     """
 
     def __init__(self, base_dir: PathLike) -> None:
@@ -313,7 +313,7 @@ class JobQueue:
         - running/: For jobs being processed
         - completed/: For finished jobs
         - failed/: For failed jobs
-        - completed_results/: For job results (configurable via DIRQ_RESULTS_DIR)
+        - completed_results/: For job results (configurable via WERQ_RESULTS_DIR)
         """
         for dir_name in [get_result_dir_name()] + [status.value for status in JobState]:
             (self.base_dir / dir_name).mkdir(parents=True, exist_ok=True)
@@ -626,7 +626,7 @@ class Worker(ABC):
 
         Returns the name in the following order of precedence:
         1. Name provided in constructor
-        2. Environment variable DIRQ_WORKER_NAME
+        2. Environment variable WERQ_WORKER_NAME
         3. Generated name using class name and process ID
         """
         import multiprocessing
@@ -636,7 +636,7 @@ class Worker(ABC):
             return self._provided_name
 
         # Check environment variable
-        env_name = os.environ.get("DIRQ_WORKER_NAME")
+        env_name = os.environ.get("WERQ_WORKER_NAME")
         if env_name:
             return env_name
 

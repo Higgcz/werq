@@ -10,8 +10,8 @@ from typing import Optional
 from rich.console import Console
 from rich.table import Table
 
-from dirq import DirQError, Job, JobQueue, JobState
-from dirq.dirq import JobID
+from werq import Job, JobQueue, JobState, WerqError
+from werq.queue import JobID
 
 
 def submit_command(
@@ -44,7 +44,7 @@ def submit_command(
 
     except json.JSONDecodeError as e:
         print(f"Error reading parameters file: {e}")
-    except DirQError as e:
+    except WerqError as e:
         print(f"Job submission failed: {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")

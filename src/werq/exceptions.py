@@ -1,8 +1,8 @@
-"""Custom exceptions for dirq.
+"""Custom exceptions for werq.
 
-This module defines the exception hierarchy used by the dirq package:
+This module defines the exception hierarchy used by the werq package:
 
-- DirQError: Base exception class for all dirq errors
+- WerqError: Base exception class for all werq errors
 - JobStateError: For invalid job state transitions
 - JobValidationError: For invalid job parameters or data
 
@@ -13,10 +13,10 @@ the original error context.
 from typing import Optional
 
 
-class DirQError(Exception):
-    """Base exception for all dirq exceptions.
+class WerqError(Exception):
+    """Base exception for all werq exceptions.
 
-    This is the parent class for all custom exceptions in the dirq package.
+    This is the parent class for all custom exceptions in the werq package.
     It can optionally wrap another exception to preserve the original error context.
 
     Args:
@@ -35,7 +35,7 @@ class DirQError(Exception):
         self.original_error = original_error
 
 
-class JobStateError(DirQError):
+class JobStateError(WerqError):
     """Raised when attempting an invalid state transition or operation on a job.
 
     This exception is raised in situations like:
@@ -47,7 +47,7 @@ class JobStateError(DirQError):
     pass
 
 
-class JobValidationError(DirQError):
+class JobValidationError(WerqError):
     """Raised when job parameters or data are invalid.
 
     This exception is raised when:

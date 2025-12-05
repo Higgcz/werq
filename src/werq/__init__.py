@@ -1,15 +1,15 @@
-"""dirq - Simple directory-based job queue system.
+"""werq - Simple directory-based job queue system.
 
 This package provides a simple, file-system based job queue system
 that's perfect for small to medium workloads where simplicity
 and ease of use are priorities.
 """
 
-from .dirq import Job, JobID, JobQueue, JobState, Worker
-from .exceptions import DirQError, JobStateError, JobValidationError
+from .exceptions import JobStateError, JobValidationError, WerqError
+from .queue import Job, JobID, JobQueue, JobState, Worker
 
 __all__ = (
-    "DirQError",
+    "WerqError",
     "Job",
     "JobID",
     "JobQueue",

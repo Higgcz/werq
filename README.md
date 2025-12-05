@@ -1,14 +1,14 @@
-# dirq
+# werq
 
 A simple, directory-based job queue system for Python.
 
-## Why dirq?
+## Why werq?
 
-I wanted a job queue that's easy to observe and debug. With dirq, everything is just JSON files in directories - you can browse jobs with `ls`, inspect them with `cat`, and understand the system state at a glance.
+I wanted a job queue that's easy to observe and debug. With werq, everything is just JSON files in directories - you can browse jobs with `ls`, inspect them with `cat`, and understand the system state at a glance.
 
-By relying on filesystem atomicity, dirq can scale to multi-machine setups with just a network filesystem. No Redis, no RabbitMQ, no external services.
+By relying on filesystem atomicity, werq can scale to multi-machine setups with just a network filesystem. No Redis, no RabbitMQ, no external services.
 
-For more advanced use cases, check out [Celery](https://docs.celeryq.dev/), [Huey](https://huey.readthedocs.io/), or [Dask](https://www.dask.org/). dirq is for when you want simplicity - jobs as plain config files, workers that decide how to process them, and each job getting its own result directory.
+For more advanced use cases, check out [Celery](https://docs.celeryq.dev/), [Huey](https://huey.readthedocs.io/), or [Dask](https://www.dask.org/). werq is for when you want simplicity - jobs as plain config files, workers that decide how to process them, and each job getting its own result directory.
 
 ## Features
 
@@ -21,7 +21,7 @@ For more advanced use cases, check out [Celery](https://docs.celeryq.dev/), [Hue
 ## Installation
 
 ```bash
-pip install dirq
+pip install werq
 ```
 
 ## CLI Usage
@@ -34,13 +34,13 @@ Submit a shell command to be executed by a worker:
 
 ```bash
 # Submit a simple command
-dirq submit echo "Hello, World!"
+werq submit echo "Hello, World!"
 
 # Submit with a name
-dirq submit --name data-processing python process.py
+werq submit --name data-processing python process.py
 
 # Submit and monitor progress
-dirq submit --monitor sleep 10
+werq submit --monitor sleep 10
 ```
 
 ### `list`
@@ -48,10 +48,10 @@ dirq submit --monitor sleep 10
 List all jobs in the queue:
 
 ```bash
-dirq list
+werq list
 
 # Limit to recent jobs
-dirq list -n 3
+werq list -n 3
 ```
 
 Example output:
@@ -72,13 +72,13 @@ Start a worker to process jobs:
 
 ```bash
 # Start a long-running worker
-dirq worker
+werq worker
 
 # Exit after queue is empty
-dirq worker --rm
+werq worker --rm
 
 # Custom poll interval
-dirq worker --poll-interval 5
+werq worker --poll-interval 5
 ```
 
 ### `info`
@@ -86,7 +86,7 @@ dirq worker --poll-interval 5
 Show detailed information about a job:
 
 ```bash
-dirq info <JOB_ID>
+werq info <JOB_ID>
 ```
 
 ### `resubmit`
@@ -94,10 +94,10 @@ dirq info <JOB_ID>
 Resubmit a completed or failed job:
 
 ```bash
-dirq resubmit <JOB_ID>
+werq resubmit <JOB_ID>
 
 # With a new name
-dirq resubmit <JOB_ID> --name retry-upload
+werq resubmit <JOB_ID> --name retry-upload
 ```
 
 ### `rm`
@@ -105,16 +105,16 @@ dirq resubmit <JOB_ID> --name retry-upload
 Delete a job:
 
 ```bash
-dirq rm <JOB_ID>
+werq rm <JOB_ID>
 ```
 
 ### Typical Workflow
 
-1. `dirq submit echo "process data"` - enqueue jobs
-2. `dirq list` - monitor queue
-3. `dirq worker --rm` - process jobs (exits when done)
-4. `dirq info <JOB_ID>` - inspect results
-5. `dirq resubmit <JOB_ID>` - retry failed jobs
+1. `werq submit echo "process data"` - enqueue jobs
+2. `werq list` - monitor queue
+3. `werq worker --rm` - process jobs (exits when done)
+4. `werq info <JOB_ID>` - inspect results
+5. `werq resubmit <JOB_ID>` - retry failed jobs
 
 ## Directory Structure
 
@@ -136,12 +136,12 @@ jobs/
 
 ## Python API
 
-The real power of dirq is in the Python API. You can embed job submission in any application - a web dashboard, a script, a notebook - and create custom workers that process jobs however you need.
+The real power of werq is in the Python API. You can embed job submission in any application - a web dashboard, a script, a notebook - and create custom workers that process jobs however you need.
 
 **Submitting jobs** (e.g., from a web dashboard):
 
 ```python
-from dirq import JobQueue
+from werq import JobQueue
 from pathlib import Path
 
 queue = JobQueue(Path("jobs"))
@@ -159,7 +159,7 @@ print(f"Submitted: {job.id}")
 **Creating a custom worker**:
 
 ```python
-from dirq import JobQueue, Worker
+from werq import JobQueue, Worker
 
 class OptimizationWorker(Worker):
     def process_job(self, job, *, result_dir):
@@ -189,8 +189,8 @@ This pattern works great for dashboards and web apps - submit jobs from your fro
 ## Development
 
 ```bash
-git clone https://github.com/higgcz/dirq.git
-cd dirq
+git clone https://github.com/higgcz/werq.git
+cd werq
 uv sync --dev
 ```
 

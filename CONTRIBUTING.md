@@ -1,6 +1,6 @@
-# Contributing to dirq
+# Contributing to werq
 
-Thank you for your interest in contributing to dirq!
+Thank you for your interest in contributing to werq!
 
 ## Development Setup
 
@@ -13,8 +13,8 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
 
 2. Clone and set up the project:
    ```bash
-   git clone https://github.com/higgcz/dirq.git
-   cd dirq
+   git clone https://github.com/higgcz/werq.git
+   cd werq
    uv sync --dev
    ```
 
@@ -37,7 +37,7 @@ uv run ruff format .
 
 Run type checking:
 ```bash
-uv run mypy src/dirq
+uv run mypy src/werq
 ```
 
 ## Testing
@@ -49,7 +49,7 @@ uv run pytest
 
 Run with coverage:
 ```bash
-uv run pytest --cov=dirq
+uv run pytest --cov=werq
 ```
 
 ## Pull Request Process
