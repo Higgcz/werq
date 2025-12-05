@@ -7,39 +7,39 @@ on:
   pull_request:
     branches: [master, main]
 
-env:
-  UV_VERSION: "0.8.5"
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: ${{ env.UV_VERSION }}
+      - name: Configure git
+        run: |
+          git config --global user.email "ci@github.com"
+          git config --global user.name "CI"
 
-      - name: Set up Python
-        run: uv python install 3.11
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --dev
 
       - name: Run pre-commit
-        run: |
-          uv tool install pre-commit
-          uv tool run pre-commit run --all-files
+        run: uv run pre-commit run --all-files
 
       - name: Run tests
-        run: uv run pytest --junitxml=pytest-report.xml
+        run: uv run --frozen pytest --junitxml=pytest-report.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pytest-results
+          name: pytest-results-${{ matrix.python-version }}
           path: pytest-report.xml
 
   publish:
@@ -55,12 +55,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python
-        run: uv python install 3.11
+          python-version: "3.13"
 
       - name: Build package
         run: uv build
